@@ -211,24 +211,22 @@ enum MenuBarIcon {
 
 // MARK: - Panel design (Claude Design, October 2026)
 
-/// The small header chip: red square, cream border, a cream half sun on a horizon cut by thin red lines.
+/// The small header chip: the striped V mark, a cream and a sand triangle cut by thin red lines, on a red square with a cream border.
 struct DawnChip: View {
     var size: CGFloat = 22
     var body: some View {
         Canvas { ctx, sz in
             let s = sz.width / 24
+            func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x * s, y: y * s) }
             let frame = Path(CGRect(x: 1.25 * s, y: 1.25 * s, width: 21.5 * s, height: 21.5 * s))
             ctx.fill(frame, with: .color(Ident.red))
             ctx.stroke(frame, with: .color(Ident.cream), lineWidth: 2.5 * s)
-            ctx.fill(Path(CGRect(x: 5 * s, y: 16.4 * s, width: 14 * s, height: 1.5 * s)), with: .color(Ident.cream))
-            var sun = Path()
-            sun.addEllipse(in: CGRect(x: 6 * s, y: 9.4 * s, width: 12 * s, height: 12 * s))
-            ctx.drawLayer { layer in
-                layer.clip(to: Path(CGRect(x: 0, y: 0, width: sz.width, height: 15.4 * s)))
-                layer.fill(sun, with: .color(Ident.cream))
-                for (y, h) in [(11.6, 0.8), (13.5, 0.9)] {
-                    layer.fill(Path(CGRect(x: 0, y: y * s, width: sz.width, height: h * s)), with: .color(Ident.red))
-                }
+            var left = Path(); left.addLines([p(5.5, 5.5), p(9.6, 5.5), p(12, 12.6), p(12, 18.5)]); left.closeSubpath()
+            var right = Path(); right.addLines([p(18.5, 5.5), p(14.4, 5.5), p(12, 12.6), p(12, 18.5)]); right.closeSubpath()
+            ctx.fill(left, with: .color(Ident.cream))
+            ctx.fill(right, with: .color(Ident.sand))
+            for y in [6.45, 7.89, 9.34, 10.78, 12.23, 13.67, 15.11, 16.56] {
+                ctx.fill(Path(CGRect(x: 4 * s, y: y * s, width: 16 * s, height: 0.5 * s)), with: .color(Ident.red))
             }
         }
         .frame(width: size, height: size)
