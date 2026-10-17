@@ -1,6 +1,7 @@
-<p align="center"><img src="docs/icon.png" width="128" alt="Dawn icon: a striped red sun rising over a cream horizon"></p>
-
-<h1 align="center">Dawn</h1>
+<h1 align="center">
+  <img src="docs/icon.png" width="104" alt="Dawn icon: a striped red sun rising over a cream horizon"><br>
+  Dawn
+</h1>
 
 <p align="center">Starts your Claude window before you sit down. A small app for the macOS menu bar.</p>
 
