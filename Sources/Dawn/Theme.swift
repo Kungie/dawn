@@ -229,6 +229,16 @@ enum MenuBarIcon {
         img.isTemplate = true
         return img
     }
+
+    /// The countdown next to the sun, in VT323 like Dawn's screen. VT323 runs small, so it is set larger than
+    /// the menu bar's system font and nudged down onto the same baseline. Falls back to the system font.
+    static func title(_ text: String) -> NSAttributedString {
+        let system = NSFont.menuBarFont(ofSize: 0).pointSize
+        if let vt = NSFont(name: "VT323-Regular", size: (system * 1.38).rounded()) {
+            return NSAttributedString(string: text, attributes: [.font: vt, .kern: 0.6, .baselineOffset: -1])
+        }
+        return NSAttributedString(string: text, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: system, weight: .regular)])
+    }
 }
 
 // MARK: - Panel design (Claude Design, October 2026)

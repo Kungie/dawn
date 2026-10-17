@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.2.2"
+    static let version = "0.2.3"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -44,6 +44,36 @@ enum Snapshot {
             try? png.write(to: dir.appendingPathComponent("\(name).png"))
             print("wrote \(name).png")
         }
+        menuBar(to: dir.appendingPathComponent("menubar.png").path)
+        print("wrote menubar.png")
+    }
+
+    /// A strip of dark menu bar with Dawn's item at 2x: sun plus countdown, as macOS draws it in dark mode.
+    @MainActor
+    static func menuBar(to path: String) {
+        let scale: CGFloat = 2
+        let title = NSMutableAttributedString(attributedString: MenuBarIcon.title(" 1:44"))
+        title.addAttribute(.foregroundColor, value: NSColor.white, range: NSRange(location: 0, length: title.length))
+        let textSize = title.size()
+        let size = NSSize(width: 18 + textSize.width + 20, height: 24)
+        let image = NSImage(size: NSSize(width: size.width * scale, height: size.height * scale), flipped: false) { _ in
+            NSGraphicsContext.current?.cgContext.scaleBy(x: scale, y: scale)
+            NSColor(white: 0.12, alpha: 1).setFill()
+            NSRect(origin: .zero, size: size).fill()
+            let icon = MenuBarIcon.image(asking: false)
+            let tinted = NSImage(size: icon.size, flipped: false) { r in
+                icon.draw(in: r)
+                NSColor.white.set()
+                r.fill(using: .sourceAtop)
+                return true
+            }
+            tinted.draw(in: NSRect(x: 10, y: 3, width: 18, height: 18))
+            title.draw(at: NSPoint(x: 28, y: (size.height - textSize.height) / 2))
+            return true
+        }
+        guard let tiff = image.tiffRepresentation,
+              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
     }
 
     /// The app icon: a striped red sun rising over a cream horizon on black glass.
