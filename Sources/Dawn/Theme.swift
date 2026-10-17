@@ -160,6 +160,7 @@ struct RedButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .background(configuration.isPressed ? Ident.redDeep : Ident.red)
             .contentShape(Rectangle())
+            .pointerCursor()
     }
 }
 
@@ -173,6 +174,7 @@ struct GhostButtonStyle: ButtonStyle {
             .background(configuration.isPressed ? Ident.line : Color.clear)
             .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Ident.cream.opacity(0.85), lineWidth: 1.2))
             .contentShape(Rectangle())
+            .pointerCursor()
     }
 }
 
@@ -328,6 +330,7 @@ struct DawnSwitch: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .pointerCursor()
         .accessibilityValue(isOn ? "on" : "off")
     }
 }
@@ -348,17 +351,54 @@ struct DawnPrimaryButtonStyle: ButtonStyle {
             .offset(y: configuration.isPressed ? 2 : 0)
             .padding(.bottom, 3)
             .contentShape(Rectangle())
+            .pointerCursor()
     }
 }
 
 /// Plain text actions: "Settings", "Quit", "I started in Claude.ai".
 struct DawnTextButtonStyle: ButtonStyle {
     var color: Color = Ident.cream2
+    var hoverColor: Color = Ident.cream
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        HoverText(label: configuration.label, pressed: configuration.isPressed, color: color, hoverColor: hoverColor)
+    }
+}
+
+final class HoverBox: ObservableObject {
+    @Published var on = false
+}
+
+/// Text action that answers the mouse: on hover it brightens and gets a red underline, and the cursor turns
+/// into a pointing hand.
+struct HoverText<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let color: Color
+    let hoverColor: Color
+    @StateObject private var hover = HoverBox()
+
+    var body: some View {
+        let active = hover.on || pressed
+        label
             .font(Fonts.grotesk(13, weight: 500))
-            .foregroundColor(configuration.isPressed ? Ident.cream : color)
+            .foregroundColor(active ? hoverColor : color)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Ident.red).frame(height: 1.5).offset(y: 3).opacity(active ? 1 : 0)
+            }
+            .opacity(pressed ? 0.75 : 1)
             .contentShape(Rectangle())
+            .onHover { hover.on = $0 }
+            .animation(.easeOut(duration: 0.12), value: active)
+            .pointerCursor()
+    }
+}
+
+extension View {
+    /// The pointing-hand cursor while the mouse is over this view.
+    func pointerCursor() -> some View {
+        onHover { inside in
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
     }
 }
 

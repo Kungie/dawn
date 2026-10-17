@@ -113,16 +113,17 @@ enum HookCommand {
         let data = FileHandle.standardInput.readDataToEndOfFile()
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         let cwd = (json["cwd"] as? String).map { ($0 as NSString).lastPathComponent } ?? ""
+        var info = SessionInfo.current().userInfo
+        info["project"] = cwd
         if stop {
             DistributedNotificationCenter.default().postNotificationName(
-                doneNotification, object: nil, userInfo: ["project": cwd], deliverImmediately: true)
+                doneNotification, object: nil, userInfo: info, deliverImmediately: true)
             return
         }
         let message = (json["message"] as? String) ?? "Claude Code is waiting for you"
+        info["message"] = String(message.prefix(200))
         DistributedNotificationCenter.default().postNotificationName(
-            notification, object: nil,
-            userInfo: ["message": String(message.prefix(200)), "project": cwd],
-            deliverImmediately: true)
+            notification, object: nil, userInfo: info, deliverImmediately: true)
     }
 }
 

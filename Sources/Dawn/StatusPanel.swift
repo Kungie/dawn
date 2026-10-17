@@ -48,6 +48,7 @@ final class StatusPanelController: NSObject {
             button.imagePosition = .imageLeading
         }
         updateStatusItem()
+        model.closePanel = { [weak self] in self?.hide() }
 
         // Re-pin the panel whenever SwiftUI reports a new size (Settings opened, a banner came or went).
         sizeObservation = hosting.observe(\.preferredContentSize, options: [.new]) { [weak self] _, _ in

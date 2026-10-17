@@ -42,6 +42,8 @@ struct Ask: Equatable {
     let message: String
     let project: String
     let date: Date
+    /// Where the Claude Code session runs, so a click can take you there.
+    var session = SessionInfo()
 }
 
 enum WindowSource: String { case claudeCode = "Claude Code", ping = "Dawn's ping", manual = "you" }
@@ -115,14 +117,16 @@ final class DawnModel: ObservableObject {
         observers.append(DistributedNotificationCenter.default().addObserver(forName: HookCommand.notification, object: nil, queue: .main) { [weak self] note in
             let message = note.userInfo?["message"] as? String ?? "Claude Code is waiting for you"
             let project = note.userInfo?["project"] as? String ?? ""
+            let session = SessionInfo(userInfo: note.userInfo)
             Task { @MainActor in
                 self?.done = nil
-                self?.ask = Ask(message: message, project: project, date: Date())
+                self?.ask = Ask(message: message, project: project, date: Date(), session: session)
             }
         })
         observers.append(DistributedNotificationCenter.default().addObserver(forName: HookCommand.doneNotification, object: nil, queue: .main) { [weak self] note in
             let project = note.userInfo?["project"] as? String ?? ""
-            Task { @MainActor in self?.claudeFinished(project: project) }
+            let session = SessionInfo(userInfo: note.userInfo)
+            Task { @MainActor in self?.claudeFinished(project: project, session: session) }
         })
     }
 
@@ -299,9 +303,20 @@ final class DawnModel: ObservableObject {
     func dismissAsk() { ask = nil }
     func dismissDone() { done = nil }
 
-    private func claudeFinished(project: String) {
+    /// Set by the status panel: closes the drop-down.
+    var closePanel: (() -> Void)?
+
+    /// A banner was clicked: go to that Claude Code session, on whatever Desktop it is.
+    func openSession(_ a: Ask) {
+        closePanel?()
+        if ask == a { ask = nil }
+        if done == a { done = nil }
+        SessionFocus.open(a.session, project: a.project)
+    }
+
+    private func claudeFinished(project: String, session: SessionInfo) {
         ask = nil
-        done = Ask(message: "Claude finished", project: project, date: Date())
+        done = Ask(message: "Claude finished", project: project, date: Date(), session: session)
         if settings.doneSound { SpacePing.play() }
     }
 

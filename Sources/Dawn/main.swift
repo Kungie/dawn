@@ -12,6 +12,11 @@ switch args.dropFirst().first {
 case "hook":
     HookCommand.run(stop: args.count > 2 && args[2] == "stop")
     exit(0)
+case "session":
+    // Debug: what `Dawn hook` would report about the session it runs in.
+    let s = SessionInfo.current()
+    print("host:", s.hostBundleID ?? "none", s.hostPID.map(String.init) ?? "", "tty:", s.tty ?? "none")
+    exit(0)
 case "ping-sound":
     _ = NSApplication.shared
     SpacePing.play()

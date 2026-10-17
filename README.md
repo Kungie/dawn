@@ -26,7 +26,7 @@ It doesn't give you more Claude. Your weekly limit stays exactly where Anthropic
 
 A small striped sun, and while a window is running, the time left in it. Click it and you get Dawn's screen: the countdown, when the window resets, and who started it. When no window is running it shows when the next ping goes out.
 
-If you add the Claude Code hook (one click in Settings), the sun gets a ringed dot whenever Claude Code is waiting for you, and the panel shows what it's asking. When Claude finishes a task, the sun gets a solid dot and Dawn plays a short space ping. The sound has its own switch in Settings.
+If you add the Claude Code hook (one click in Settings), the sun gets a ringed dot whenever Claude Code is waiting for you, and the panel shows what it's asking. When Claude finishes a task, the sun gets a solid dot and Dawn plays a short space ping. The sound has its own switch in Settings. Click either alert and Dawn takes you to that session: the right tab in Terminal or iTerm2, or the app it runs in (an editor, the Claude desktop app), on whichever Desktop it is. Nothing gets moved to the Desktop you're on.
 
 <p align="center"><img src="docs/panel-asking.png" width="340" alt="The panel with a red banner: Claude Code is waiting, Claude needs your permission to use Bash."> &nbsp; <img src="docs/panel-settings.png" width="340" alt="Dawn's settings: morning ping time and days, setup checks for Claude Code, the scheduled wake and the hook, the space ping switch, open at login, and the last four pings."></p>
 
@@ -62,7 +62,7 @@ That builds `Dawn.app`, copies it to `/Applications` and opens it. Then open **S
 
 **The countdown is an estimate.** Dawn reads the timestamps of Claude's replies in Claude Code's local logs (`~/.claude/projects`), the same logs community tools use, and rounds the window start down to the hour. It only sees Claude Code: the terminal, IDEs and the desktop app's Code tab. Chats in Claude.ai or the desktop app's chat don't appear there, so if you start your day in one of those, click **I started in Claude.ai**. Anthropic's own usage page is the source of truth.
 
-**The hook.** *Add* writes two entries in `~/.claude/settings.json`, one under `hooks.Notification` and one under `hooks.Stop`, keeps everything else, and saves a backup next to it the first time (`settings.json.dawn-backup`). Claude Code then runs `Dawn hook` when it's waiting for you and `Dawn hook stop` when it has finished; both pass a short message to the app and exit. *Remove* takes the entries out again. The space ping is made in code when it plays; no sound files ship with the app.
+**The hook.** *Add* writes two entries in `~/.claude/settings.json`, one under `hooks.Notification` and one under `hooks.Stop`, keeps everything else, and saves a backup next to it the first time (`settings.json.dawn-backup`). Claude Code then runs `Dawn hook` when it's waiting for you and `Dawn hook stop` when it has finished; both pass a short message to the app and exit. The message includes which app the session runs in and its terminal device, found by walking up the process tree, so a click on the alert can go there. To select the exact Terminal or iTerm2 tab, macOS asks once whether Dawn may control that app. For editors, Dawn can also raise the window of that project if you give it Accessibility access; without it, the app comes to the front. *Remove* takes the entries out again. The space ping is made in code when it plays; no sound files ship with the app.
 
 **Privacy.** Nothing leaves your Mac except the ping itself, which goes to Anthropic through Claude Code like any other message you send. Dawn has no telemetry, no account and no server.
 
@@ -80,7 +80,7 @@ Dawn is one Swift package with no dependencies. `Sources/Dawn` has the menu bar 
 /Applications/Dawn.app/Contents/MacOS/Dawn status
 ```
 
-`status` prints what Dawn sees: where `claude` is, the scheduled wake, the hook, and the current window estimate. `hook` and `hook stop` are what Claude Code calls. `ping-sound` plays the finish sound. `snapshot <folder>` renders the panel with demo data (that's where the pictures above come from), and `icon <file>` draws the app icon.
+`status` prints what Dawn sees: where `claude` is, the scheduled wake, the hook, and the current window estimate. `hook` and `hook stop` are what Claude Code calls. `ping-sound` plays the finish sound, and `session` prints which app and terminal the hook would report from where you run it. `snapshot <folder>` renders the panel with demo data (that's where the pictures above come from), and `icon <file>` draws the app icon.
 
 `make app` builds `build/Dawn.app`, `make run` opens it, `make snapshots` refreshes the pictures in `docs/`.
 

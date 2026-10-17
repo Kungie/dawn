@@ -52,9 +52,11 @@ struct MainView: View {
         VStack(alignment: .leading, spacing: 0) {
             PanelHeader()
             if let ask = model.ask {
-                AskBanner(ask: ask) { model.dismissAsk() }.padding(.horizontal, 12).padding(.bottom, 10)
+                AskBanner(ask: ask, open: { model.openSession(ask) }) { model.dismissAsk() }
+                    .padding(.horizontal, 12).padding(.bottom, 10)
             } else if let done = model.done {
-                DoneBanner(done: done) { model.dismissDone() }.padding(.horizontal, 12).padding(.bottom, 10)
+                DoneBanner(done: done, open: { model.openSession(done) }) { model.dismissDone() }
+                    .padding(.horizontal, 12).padding(.bottom, 10)
             }
             ScreenCard(model: model).padding(.horizontal, 12)
 
@@ -134,7 +136,7 @@ struct MainView: View {
             }
             .buttonStyle(DawnTextButtonStyle())
             Spacer()
-            Button("Quit") { NSApp.terminate(nil) }.buttonStyle(DawnTextButtonStyle(color: Ident.dim))
+            Button("Quit") { NSApp.terminate(nil) }.buttonStyle(DawnTextButtonStyle(color: Ident.dim, hoverColor: Ident.red))
         }
     }
 }
@@ -250,6 +252,7 @@ struct ScreenCard: View {
 
 struct AskBanner: View {
     let ask: Ask
+    let open: () -> Void
     let dismiss: () -> Void
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -259,16 +262,22 @@ struct AskBanner: View {
                 Text(ask.message).font(Fonts.grotesk(12.5, weight: 500)).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
-            Button("×") { dismiss() }.buttonStyle(.plain).font(Fonts.mono(13, bold: true))
+            Text("↗").font(Fonts.mono(13, bold: true)).help("Go to this Claude Code session")
+            Button("×") { dismiss() }.buttonStyle(.plain).font(Fonts.mono(13, bold: true)).pointerCursor()
         }
         .foregroundColor(Ident.cream)
         .padding(10)
         .background(Ident.red)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: open)
+        .pointerCursor()
+        .help("Go to this Claude Code session")
     }
 }
 
 struct DoneBanner: View {
     let done: Ask
+    let open: () -> Void
     let dismiss: () -> Void
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
@@ -278,11 +287,16 @@ struct DoneBanner: View {
                 Text("at \(Fmt.hm.string(from: done.date))").font(Fonts.vt(17)).foregroundColor(Ident.dim)
             }
             Spacer(minLength: 4)
-            Button("×") { dismiss() }.buttonStyle(.plain).font(Fonts.mono(13, bold: true)).foregroundColor(Ident.cream)
+            Text("↗").font(Fonts.mono(13, bold: true)).foregroundColor(Ident.cream2)
+            Button("×") { dismiss() }.buttonStyle(.plain).font(Fonts.mono(13, bold: true)).foregroundColor(Ident.cream).pointerCursor()
         }
         .padding(10)
         .background(Ident.black2)
         .overlay(Rectangle().strokeBorder(Ident.line, lineWidth: 1))
+        .contentShape(Rectangle())
+        .onTapGesture(perform: open)
+        .pointerCursor()
+        .help("Go to this Claude Code session")
     }
 }
 
@@ -458,6 +472,7 @@ struct TimeStepper: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .pointerCursor()
     }
 }
 
@@ -479,6 +494,7 @@ struct DayPicker: View {
                         .overlay(Rectangle().strokeBorder(on ? Color.clear : Ident.line, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
+                .pointerCursor()
             }
         }
     }
