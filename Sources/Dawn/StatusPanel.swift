@@ -12,7 +12,8 @@ import SwiftUI
 final class StatusPanelController: NSObject {
     private let model: DawnModel
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let hosting: NSHostingController<PanelView>
+    private let hosting: NSHostingController<PanelContainer>
+    private let geometry = PanelGeometry()
     private let panel: DawnPanel
     private var sizeObservation: NSKeyValueObservation?
     private var changes: AnyCancellable?
@@ -21,7 +22,7 @@ final class StatusPanelController: NSObject {
 
     init(model: DawnModel) {
         self.model = model
-        hosting = NSHostingController(rootView: PanelView(model: model))
+        hosting = NSHostingController(rootView: PanelContainer(model: model, geometry: geometry))
         hosting.sizingOptions = [.preferredContentSize]
         panel = DawnPanel(contentRect: NSRect(x: 0, y: 0, width: PanelView.width, height: 400),
                           styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
@@ -125,7 +126,8 @@ final class StatusPanelController: NSObject {
         model.dismissDone()
     }
 
-    /// Top edge flush with the bottom of the menu bar, centred under the sun, kept inside the screen.
+    /// Notch tip a hair under the menu bar, panel centred under the sun and kept inside the screen;
+    /// if the panel has to shift to stay on screen, the notch moves so it still points at the sun.
     private func place() {
         guard let button = statusItem.button, let buttonWindow = button.window else { return }
         let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
@@ -136,7 +138,8 @@ final class StatusPanelController: NSObject {
         var x = anchor.midX - size.width / 2
         x = min(max(x, screen.minX + 6), screen.maxX - size.width - 6)
         // The status item's window spans the full menu bar height, so its bottom is the menu bar's edge.
-        let top = buttonWindow.frame.minY
+        let top = buttonWindow.frame.minY - 3
+        geometry.arrowX = min(max(anchor.midX - x, 16), size.width - 16)
         panel.setFrame(NSRect(x: x, y: top - size.height, width: size.width, height: size.height), display: true)
     }
 }

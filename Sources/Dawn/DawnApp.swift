@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.2.1"
+    static let version = "0.2.2"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -24,14 +24,18 @@ enum Snapshot {
     static func run(to folder: String) {
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let shots: [(String, DawnModel)] = [
-            ("panel", DawnModel.demoModel()),
-            ("panel-asking", DawnModel.demoModel(asking: true)),
-            ("panel-idle", DawnModel.demoModel(idle: true)),
-            ("panel-settings", DawnModel.demoModel(settings: true)),
+        let shots: [(String, DawnModel, CGFloat)] = [
+            ("panel", DawnModel.demoModel(), PanelView.width / 2),
+            ("panel-asking", DawnModel.demoModel(asking: true), PanelView.width / 2),
+            ("panel-idle", DawnModel.demoModel(idle: true), PanelView.width / 2),
+            ("panel-settings", DawnModel.demoModel(settings: true), PanelView.width / 2),
+            // As in the menu bar near the screen's right edge: panel pushed left, notch off-centre.
+            ("panel-right", DawnModel.demoModel(), 262),
         ]
-        for (name, model) in shots {
-            let renderer = ImageRenderer(content: PanelView(model: model))
+        for (name, model, arrowX) in shots {
+            let geometry = PanelGeometry()
+            geometry.arrowX = arrowX
+            let renderer = ImageRenderer(content: PanelContainer(model: model, geometry: geometry))
             renderer.scale = 2
             guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,
                   let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else {

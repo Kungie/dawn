@@ -488,3 +488,83 @@ enum Fmt {
     static let hm: DateFormatter = { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f }()
     static let day: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "EEE"; return f }()
 }
+
+// MARK: - Notch
+
+/// Where the notch points, in panel coordinates. Set by the status panel so it sits under the sun.
+final class PanelGeometry: ObservableObject {
+    @Published var arrowX: CGFloat = PanelView.width / 2
+}
+
+/// The panel with its pixel notch on top. The notch points at the menu bar sun; under it, red pixels
+/// bleed into the panel's top edge and thin out in an ordered dither.
+struct PanelContainer: View {
+    @ObservedObject var model: DawnModel
+    @ObservedObject var geometry: PanelGeometry
+
+    static let notchHeight: CGFloat = PixelNotch.rows * PixelNotch.pixel
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PixelNotch()
+                .frame(width: PixelNotch.width, height: Self.notchHeight)
+                .padding(.leading, max(0, geometry.arrowX - PixelNotch.width / 2))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            PanelView(model: model)
+                .overlay(alignment: .top) { PixelBleed(centerX: geometry.arrowX).frame(height: PixelNotch.pixel * 3) }
+        }
+        .frame(width: PanelView.width)
+    }
+}
+
+/// A stepped triangle of 2 pt pixels, 1-3-5-7-9 wide.
+struct PixelNotch: View {
+    static let pixel: CGFloat = 2
+    static let rows: CGFloat = 5
+    static var width: CGFloat { (rows * 2 - 1) * pixel }
+
+    var body: some View {
+        Canvas { ctx, size in
+            let p = Self.pixel
+            let cx = size.width / 2
+            for r in 0..<Int(Self.rows) {
+                let count = 2 * r + 1
+                for k in 0..<count {
+                    let x = cx - CGFloat(count) * p / 2 + CGFloat(k) * p
+                    // The tip is bright; the base row alternates with red-deep where it meets the panel.
+                    let color = (r == Int(Self.rows) - 1 && k % 2 == 1) ? Ident.redDeep : Ident.red
+                    ctx.fill(Path(CGRect(x: x, y: CGFloat(r) * p, width: p, height: p)), with: .color(color))
+                }
+            }
+        }
+    }
+}
+
+/// Red pixels along the panel's top edge, densest under the notch, fading out with a 4 × 4 Bayer dither.
+struct PixelBleed: View {
+    let centerX: CGFloat
+    private static let bayer: [[Double]] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]
+
+    var body: some View {
+        Canvas { ctx, size in
+            let p = PixelNotch.pixel
+            let reach: [CGFloat] = [90, 56, 28] // how far each row reaches from the notch
+            for row in 0..<3 {
+                var col = 0
+                var x: CGFloat = 0
+                while x < size.width {
+                    let d = abs(x + p / 2 - centerX)
+                    let density = max(0, 1 - d / reach[row])
+                    let threshold = (Self.bayer[row % 4][col % 4] + 0.5) / 16
+                    if density > threshold {
+                        ctx.fill(Path(CGRect(x: x, y: CGFloat(row) * p, width: p, height: p)),
+                                 with: .color(density > 0.6 ? Ident.red : Ident.redDeep))
+                    }
+                    x += p
+                    col += 1
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
