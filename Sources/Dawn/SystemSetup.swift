@@ -57,6 +57,26 @@ enum ClaudeHook {
     /// Hook event → the command Claude Code runs for it.
     private static var events: [String: String] { ["Notification": command, "Stop": command + " stop"] }
 
+    /// Claude Code's status line command: Dawn reads the real reset time from it.
+    static var statusLineCommand: String {
+        "\"\(Bundle.main.executablePath ?? "/Applications/Dawn.app/Contents/MacOS/Dawn")\" statusline"
+    }
+
+    private static func isOurStatusLine(_ value: Any?) -> Bool {
+        (((value as? [String: Any])?["command"] as? String) ?? "").contains("/Contents/MacOS/Dawn\" statusline")
+    }
+
+    /// The status line you had before Dawn took the slot; Dawn runs it and shows its output.
+    private static var originalURL: URL {
+        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Dawn")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("original-statusline.txt")
+    }
+
+    static func originalStatusLine() -> String? {
+        try? String(contentsOf: originalURL, encoding: .utf8)
+    }
+
     private static func isOurs(_ entry: Any) -> Bool {
         guard let hooks = (entry as? [String: Any])?["hooks"] as? [[String: Any]] else { return false }
         return hooks.contains { (($0["command"] as? String) ?? "").contains("/Contents/MacOS/Dawn\" hook") }
@@ -73,6 +93,7 @@ enum ClaudeHook {
     static func isInstalled() -> Bool {
         guard let json = try? load(), let hooks = json["hooks"] as? [String: Any] else { return false }
         return events.keys.allSatisfy { ((hooks[$0] as? [Any]) ?? []).contains(where: isOurs) }
+            && isOurStatusLine(json["statusLine"])
     }
 
     static func install() -> String? { update(add: true) }
@@ -88,6 +109,27 @@ enum ClaudeHook {
                 if list.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = list }
             }
             if hooks.isEmpty { json.removeValue(forKey: "hooks") } else { json["hooks"] = hooks }
+
+            // Status line: take the slot, keeping your own command (and its padding/refresh settings)
+            // to run behind Dawn's; on remove, put yours back exactly.
+            let fm0 = FileManager.default
+            var line = json["statusLine"] as? [String: Any]
+            if add {
+                if !isOurStatusLine(line), let own = line?["command"] as? String, !own.isEmpty {
+                    try own.write(to: originalURL, atomically: true, encoding: .utf8)
+                }
+                if line == nil { line = ["type": "command"] }
+                line?["command"] = statusLineCommand
+                json["statusLine"] = line
+            } else if isOurStatusLine(line) {
+                if let own = originalStatusLine(), !own.isEmpty {
+                    line?["command"] = own
+                    json["statusLine"] = line
+                } else {
+                    json.removeValue(forKey: "statusLine")
+                }
+                try? fm0.removeItem(at: originalURL)
+            }
 
             let fm = FileManager.default
             try fm.createDirectory(at: settingsURL.deletingLastPathComponent(), withIntermediateDirectories: true)

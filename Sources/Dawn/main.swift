@@ -3,6 +3,8 @@ import AppKit
 // Dawn is one binary with a few ways in:
 //   Dawn                 the menu bar app
 //   Dawn hook [stop]     called by Claude Code's Notification / Stop hooks, forwards them to the app and exits
+//   Dawn statusline      Claude Code's status line: passes the real reset time on, then runs your own status line
+//   Dawn hook-install    the same as Add next to "Claude Code hook" in Settings (hook-remove: Remove)
 //   Dawn ping-sound      plays the "Claude finished" sound
 //   Dawn schedule [demo] prints the morning ping and its 5 h 1 min follow-ups for today
 //   Dawn snapshot <dir>  renders the panel with demo data (README screenshots)
@@ -12,6 +14,14 @@ let args = CommandLine.arguments
 switch args.dropFirst().first {
 case "hook":
     HookCommand.run(stop: args.count > 2 && args[2] == "stop")
+    exit(0)
+case "hook-install", "hook-remove":
+    // Same as Add / Remove next to "Claude Code hook" in Settings.
+    if let error = args[1] == "hook-install" ? ClaudeHook.install() : ClaudeHook.remove() { print(error); exit(1) }
+    print(ClaudeHook.isInstalled() ? "hook installed" : "hook removed")
+    exit(0)
+case "statusline":
+    StatusLineCommand.run()
     exit(0)
 case "session":
     // Debug: what `Dawn hook` would report about the session it runs in.
@@ -36,6 +46,11 @@ case "schedule":
         clock = next
     }
     if let m = Schedule.nextMorning(after: base, s, cal) { print("next morning", f.string(from: m)) }
+    // With a real reset time from Claude: the follow-up goes out a minute after it.
+    let reset = base.addingTimeInterval(-30 * 60 + Schedule.windowLength) // e.g. Claude rounds 06:30 down to 06:00
+    if let n = Schedule.nextFollowUp(at: base.addingTimeInterval(60), s, pings: [base], knownReset: reset, cal) {
+        print("with Claude's reset at", f.string(from: reset), "-> follow-up", f.string(from: n))
+    }
     exit(0)
 case "ping-sound":
     _ = NSApplication.shared
@@ -51,6 +66,9 @@ case "status":
     print("claude:      \(PingRunner.locateClaude() ?? "not found")")
     print("wake:        \(WakeSchedule.current() ?? "none")")
     print("hook:        \(ClaudeHook.isInstalled() ? "installed" : "not installed")")
+    if let l = WindowLimit.load() {
+        print("from Claude: resets \(f.string(from: l.resetsAt)), \(l.usedPercent.map { "\(Int($0))% used" } ?? "usage unknown"), seen \(f.string(from: l.updated))")
+    }
     print("activity:    \(acts.count) Claude replies in the last 24 h (\(acts.filter(\.isPing).count) from pings)")
     if let block = UsageLog.blocks(from: acts.map(\.date)).last, block.end > Date() {
         print("window:      \(f.string(from: block.start)) to \(f.string(from: block.end)), \(Int(block.end.timeIntervalSinceNow / 60)) min left (estimate)")

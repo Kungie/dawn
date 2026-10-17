@@ -199,7 +199,7 @@ struct ScreenCard: View {
                         right: "RESETS \(Fmt.hm.string(from: w.interval.end))", rightColor: Ident.cream2,
                         big: DawnModel.hm(left), bigSize: 116, rise: 1, sunWidth: 96, fill: left / w.interval.duration,
                         bottomLeft: "FROM \(Fmt.hm.string(from: w.interval.start)) · \(sourceName(w.source))",
-                        bottomRight: "ESTIMATE")
+                        bottomRight: w.official ? (w.usedPercent.map { "\(Int($0.rounded()))% USED" } ?? "FROM CLAUDE") : "ESTIMATE")
         }
         if let next = model.nextFire {
             return Face(label: "Next ping", labelColor: Ident.dim, right: Fmt.day.string(from: next).uppercased(), rightColor: Ident.red,
@@ -360,7 +360,7 @@ struct SettingsView: View {
                     }
                 }
                 SetupRow(title: "Claude Code hook",
-                         status: model.hookInstalled ? "A dot when Claude Code waits, a ping when it's done." : "Off",
+                         status: model.hookInstalled ? "Real reset time, a dot when Claude Code waits, a ping when it's done." : "Off. Add it for the real reset time and the dots.",
                          ok: model.hookInstalled) {
                     Button(model.hookInstalled ? "Remove" : "Add") { model.toggleHook() }
                         .buttonStyle(GhostButtonStyle(compact: true))

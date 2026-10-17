@@ -57,6 +57,9 @@ enum WindowSource: String { case claudeCode = "Claude Code", ping = "Dawn's ping
 struct UsageWindow: Equatable {
     let interval: DateInterval
     let source: WindowSource
+    /// True when the reset time comes from Claude itself (status line), false for the log estimate.
+    var official = false
+    var usedPercent: Double?
 }
 
 @MainActor
@@ -71,6 +74,8 @@ final class DawnModel: ObservableObject {
     @Published private(set) var ask: Ask?
     /// Claude Code finished a task (Stop hook). Shown as a dot in the menu bar until seen.
     @Published private(set) var done: Ask?
+    /// Claude's own reset time and usage for the current window, from Claude Code's status line.
+    @Published private(set) var limit: WindowLimit? = WindowLimit.load()
     @Published private(set) var claudePath: String?
     @Published private(set) var claudeChecked = false
     @Published private(set) var wakeStatus: String?
@@ -136,6 +141,15 @@ final class DawnModel: ObservableObject {
             let session = SessionInfo(userInfo: note.userInfo)
             Task { @MainActor in self?.claudeFinished(project: project, session: session) }
         })
+        observers.append(DistributedNotificationCenter.default().addObserver(forName: StatusLineCommand.notification, object: nil, queue: .main) { [weak self] note in
+            guard let t = note.userInfo?["resetsAt"] as? Double else { return }
+            let used = (note.userInfo?["used"] as? Double).flatMap { $0 >= 0 ? $0 : nil }
+            Task { @MainActor in
+                self?.limit = WindowLimit(resetsAt: Date(timeIntervalSince1970: t), usedPercent: used, updated: Date())
+                self?.updateWindow()
+                self?.refreshNextFire()
+            }
+        })
     }
 
     private func tick() {
@@ -187,10 +201,18 @@ final class DawnModel: ObservableObject {
         let pings = (history.filter { $0.ok && $0.trigger != .skipped }.map(\.date) + pingActivity).filter { $0 > day }
         let manual = manualStarts.filter { $0 > day }
         let all = ownActivity + pings + manual
+        func source(of block: DateInterval) -> WindowSource {
+            let first = all.filter { block.contains($0) }.min() ?? block.start
+            return pings.contains(first) ? .ping : (manual.contains(first) ? .manual : .claudeCode)
+        }
+        // Claude's own reset time wins whenever it covers now; the log estimate is the fallback.
+        if let l = limit, l.resetsAt > now, l.resetsAt.timeIntervalSince(now) <= UsageLog.windowLength + 60 {
+            let block = DateInterval(start: l.resetsAt.addingTimeInterval(-UsageLog.windowLength), end: l.resetsAt)
+            window = UsageWindow(interval: block, source: source(of: block), official: true, usedPercent: l.usedPercent)
+            return
+        }
         guard let block = UsageLog.blocks(from: all).last, block.end > now else { window = nil; return }
-        let first = all.filter { block.contains($0) }.min() ?? block.start
-        let source: WindowSource = pings.contains(first) ? .ping : (manual.contains(first) ? .manual : .claudeCode)
-        window = UsageWindow(interval: block, source: source)
+        window = UsageWindow(interval: block, source: source(of: block))
     }
 
     private func updateWeek() {
@@ -229,7 +251,7 @@ final class DawnModel: ObservableObject {
             morning = date
             break
         }
-        let followUp = Schedule.nextFollowUp(at: Date(), settings, pings: pingDates).map { max($0, Date()) }
+        let followUp = Schedule.nextFollowUp(at: Date(), settings, pings: pingDates, knownReset: limit?.resetsAt).map { max($0, Date()) }
         nextFire = [morning, followUp].compactMap { $0 }.min()
     }
 
@@ -239,7 +261,7 @@ final class DawnModel: ObservableObject {
     private func checkFollowUp() {
         guard settings.enabled, settings.followUps, !firing, !demo else { return }
         let now = Date()
-        guard let due = Schedule.nextFollowUp(at: now, settings, pings: pingDates), now >= due else { return }
+        guard let due = Schedule.nextFollowUp(at: now, settings, pings: pingDates, knownReset: limit?.resetsAt), now >= due else { return }
         if let last = lastFollowUpAttempt, now.timeIntervalSince(last) < 10 * 60 { return }
         lastFollowUpAttempt = now
         fire(.followUp)
@@ -392,7 +414,7 @@ final class DawnModel: ObservableObject {
         m.now = cal.date(bySettingHour: 9, minute: 16, second: 0, of: Date())!
         if !idle {
             m.window = UsageWindow(interval: DateInterval(start: cal.date(bySettingHour: 6, minute: 0, second: 0, of: Date())!,
-                                                          duration: UsageLog.windowLength), source: .ping)
+                                                          duration: UsageLog.windowLength), source: .ping, official: true, usedPercent: 23)
         }
         m.history = (0..<4).map { FireRecord(date: today630.addingTimeInterval(Double(-$0) * 86400), trigger: .scheduled, ok: true, detail: "Pong!") }
         m.claudePath = "/Users/you/.local/bin/claude"

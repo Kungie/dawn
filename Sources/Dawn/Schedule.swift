@@ -4,7 +4,8 @@ import Foundation
 ///
 /// The morning ping goes out at the set time on the chosen days. With follow-ups on, the next ping goes out
 /// 5 h 1 min after the last one that actually went out (or after the morning time, if the morning ping was
-/// skipped or missed), so a new window starts a minute after the last one ends. The chain stops before a
+/// skipped or missed), so a new window starts a minute after the last one ends. When Claude Code has told
+/// Dawn the real reset time (status line), the follow-up goes out a minute after that instead. The chain stops before a
 /// ping whose window would still be running at the next morning ping, so the morning ping stays clean.
 enum Schedule {
     static let followUpGap: TimeInterval = 5 * 3600 + 60
@@ -39,11 +40,18 @@ enum Schedule {
 
     /// When the next follow-up ping is due (it may already be in the past: then it's due now),
     /// or nil when the chain is over until the next morning.
-    static func nextFollowUp(at now: Date, _ s: Settings, pings: [Date], _ cal: Calendar = .current) -> Date? {
+    /// `knownReset` is Claude's own reset time for the current window, when Dawn has it: then the
+    /// follow-up goes out a minute after that instead of 5 h 1 min after the last ping.
+    static func nextFollowUp(at now: Date, _ s: Settings, pings: [Date], knownReset: Date? = nil,
+                             _ cal: Calendar = .current) -> Date? {
         guard s.enabled, s.followUps, let base = chainBase(at: now, s, cal),
               let nextMorning = nextMorning(after: base, s, cal) else { return nil }
         let anchor = pings.filter { $0 >= base && $0 <= now }.max() ?? base
-        let next = anchor.addingTimeInterval(followUpGap)
+        var next = anchor.addingTimeInterval(followUpGap)
+        // Claude's own reset for the window after the last ping wins, also when your own prompt opened it.
+        if let r = knownReset, r > anchor {
+            next = r.addingTimeInterval(60)
+        }
         guard next.addingTimeInterval(windowLength) <= nextMorning else { return nil }
         return next
     }
