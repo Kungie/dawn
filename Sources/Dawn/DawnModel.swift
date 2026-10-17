@@ -84,7 +84,7 @@ final class DawnModel: ObservableObject {
     private var pingActivity: [Date] = []
     private var timers: [Timer] = []
     private var observers: [NSObjectProtocol] = []
-    private let work = DispatchQueue(label: "labs.vektor.dawn.work", qos: .utility)
+    private let work = DispatchQueue(label: "dawn.work", qos: .utility)
     private var demo = false
 
     init() {

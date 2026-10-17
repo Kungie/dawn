@@ -106,8 +106,8 @@ enum ClaudeHook {
 
 /// `Dawn hook [stop]`: called by Claude Code with the event as JSON on stdin. Forwards it to the running app and exits.
 enum HookCommand {
-    static let notification = Notification.Name("labs.vektor.dawn.ask")
-    static let doneNotification = Notification.Name("labs.vektor.dawn.done")
+    static let notification = Notification.Name("io.github.kungie.dawn.ask")
+    static let doneNotification = Notification.Name("io.github.kungie.dawn.done")
 
     static func run(stop: Bool) {
         let data = FileHandle.standardInput.readDataToEndOfFile()

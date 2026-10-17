@@ -2,7 +2,7 @@ import AppKit
 import CoreText
 import SwiftUI
 
-/// The Vektor Labs "Ident" palette: red, cream and an almost-black.
+/// Dawn's "Ident" palette: red, cream and an almost-black.
 enum Ident {
     static let black = Color(hex: 0x050303)
     static let black2 = Color(hex: 0x0E0908)
@@ -67,49 +67,6 @@ enum Fonts {
     static func mono(_ size: CGFloat, bold: Bool = false) -> Font {
         let name = bold ? "SpaceMono-Bold" : "SpaceMono-Regular"
         return NSFont(name: name, size: size) != nil ? .custom(name, size: size) : .system(size: size, design: .monospaced)
-    }
-}
-
-/// The striped V of Vektor Labs, drawn from the same geometry as the website's `#vmark` symbol (viewBox 0 0 100 100).
-struct StripedV: View {
-    var left: Color = Ident.cream
-    var right: Color = Ident.sand
-
-    var body: some View {
-        Canvas { ctx, size in
-            let s = min(size.width, size.height) / 100
-            for i in 0..<9 {
-                let y = 10 + Double(i) * 8.95
-                let l = 12 + Double(i) * 2.685
-                let r = 66 - Double(i) * 2.685
-                ctx.fill(Self.stripe(x: l, y: y, skew: 1.92, s: s), with: .color(left))
-                ctx.fill(Self.stripe(x: r, y: y, skew: -1.92, s: s), with: .color(right))
-            }
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-
-    private static func stripe(x: Double, y: Double, skew: Double, s: Double) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: x * s, y: y * s))
-        p.addLine(to: CGPoint(x: (x + 22) * s, y: y * s))
-        p.addLine(to: CGPoint(x: (x + 22 + skew) * s, y: (y + 6.4) * s))
-        p.addLine(to: CGPoint(x: (x + skew) * s, y: (y + 6.4) * s))
-        p.closeSubpath()
-        return p
-    }
-}
-
-/// The red chip with a cream border and the V inside, as in the site header.
-struct IdentChip: View {
-    var size: CGFloat = 26
-    var body: some View {
-        ZStack {
-            Rectangle().fill(Ident.red)
-            StripedV().padding(size * 0.12)
-        }
-        .frame(width: size * 1.15, height: size)
-        .overlay(Rectangle().strokeBorder(Ident.cream, lineWidth: max(2, size * 0.14)))
     }
 }
 
@@ -254,22 +211,24 @@ enum MenuBarIcon {
 
 // MARK: - Panel design (Claude Design, October 2026)
 
-/// The small header chip: red square, cream border, a V of a cream and a sand triangle cut by thin red lines.
+/// The small header chip: red square, cream border, a cream half sun on a horizon cut by thin red lines.
 struct DawnChip: View {
     var size: CGFloat = 22
     var body: some View {
         Canvas { ctx, sz in
             let s = sz.width / 24
-            func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x * s, y: y * s) }
             let frame = Path(CGRect(x: 1.25 * s, y: 1.25 * s, width: 21.5 * s, height: 21.5 * s))
             ctx.fill(frame, with: .color(Ident.red))
             ctx.stroke(frame, with: .color(Ident.cream), lineWidth: 2.5 * s)
-            var left = Path(); left.addLines([p(5.5, 5.5), p(9.6, 5.5), p(12, 12.6), p(12, 18.5)]); left.closeSubpath()
-            var right = Path(); right.addLines([p(18.5, 5.5), p(14.4, 5.5), p(12, 12.6), p(12, 18.5)]); right.closeSubpath()
-            ctx.fill(left, with: .color(Ident.cream))
-            ctx.fill(right, with: .color(Ident.sand))
-            for y in [6.45, 7.89, 9.34, 10.78, 12.23, 13.67, 15.11, 16.56] {
-                ctx.fill(Path(CGRect(x: 4 * s, y: y * s, width: 16 * s, height: 0.5 * s)), with: .color(Ident.red))
+            ctx.fill(Path(CGRect(x: 5 * s, y: 16.4 * s, width: 14 * s, height: 1.5 * s)), with: .color(Ident.cream))
+            var sun = Path()
+            sun.addEllipse(in: CGRect(x: 6 * s, y: 9.4 * s, width: 12 * s, height: 12 * s))
+            ctx.drawLayer { layer in
+                layer.clip(to: Path(CGRect(x: 0, y: 0, width: sz.width, height: 15.4 * s)))
+                layer.fill(sun, with: .color(Ident.cream))
+                for (y, h) in [(11.6, 0.8), (13.5, 0.9)] {
+                    layer.fill(Path(CGRect(x: 0, y: y * s, width: sz.width, height: h * s)), with: .color(Ident.red))
+                }
             }
         }
         .frame(width: size, height: size)

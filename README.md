@@ -13,7 +13,7 @@
 
 <p align="center"><img src="docs/readme.png" width="540" alt="Dawn in a Mac menu bar: a striped sun with 1:44 next to it, highlighted, and Dawn's panel hanging under it with a red pixel notch: 1:44 left in the window, resets at 11:00, started by Dawn's ping; the morning ping at 06:30 Mon–Fri; 9.5 hours started early this week."></p>
 
-<p align="center"><a href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.zip"><b>Download for Mac</b></a> · by <a href="https://github.com/Kungie">Vektor Labs</a></p>
+<p align="center"><a href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.zip"><b>Download for Mac</b></a></p>
 
 ---
 
@@ -71,7 +71,7 @@ That builds `Dawn.app`, copies it to `/Applications` and opens it. Then open **S
 
 Dawn only drives the official Claude Code CLI on your own Mac, with your own account, once a morning, the same as typing a message yourself at 06:30. Anthropic sets the limits and the rules and can change them. Read their terms and decide for yourself. If scheduled pings ever stop making sense, Dawn is still a decent window clock.
 
-Dawn is an independent project by Vektor Labs and is not affiliated with, endorsed by or sponsored by Anthropic. Claude and Claude Code are trademarks of Anthropic, PBC.
+Dawn is an independent project and is not affiliated with, endorsed by or sponsored by Anthropic. Claude and Claude Code are trademarks of Anthropic, PBC.
 
 ## For tinkerers
 
