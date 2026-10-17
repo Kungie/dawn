@@ -2,27 +2,19 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.2.0"
-}
-
-struct DawnApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @ObservedObject private var model = DawnModel.shared
-
-    var body: some Scene {
-        MenuBarExtra {
-            PanelView(model: model)
-        } label: {
-            MenuBarLabel(model: model)
-        }
-        .menuBarExtraStyle(.window)
-    }
+    static let version = "0.2.1"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var statusPanel: StatusPanelController?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        Task { @MainActor in DawnModel.shared.start() }
+        MainActor.assumeIsolated {
+            statusPanel = StatusPanelController(model: DawnModel.shared)
+            DawnModel.shared.start()
+            if ProcessInfo.processInfo.environment["DAWN_PANEL_SELFTEST"] == "1" { statusPanel?.selfTest() }
+        }
     }
 }
 

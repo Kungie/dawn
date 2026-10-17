@@ -488,14 +488,3 @@ enum Fmt {
     static let hm: DateFormatter = { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f }()
     static let day: DateFormatter = { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "EEE"; return f }()
 }
-
-/// The menu bar item: the striped-sun icon, plus time left while a window runs.
-struct MenuBarLabel: View {
-    @ObservedObject var model: DawnModel
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(nsImage: MenuBarIcon.image(asking: model.ask != nil, done: model.done != nil))
-            if let t = model.menuBarText { Text(t).monospacedDigit() }
-        }
-    }
-}

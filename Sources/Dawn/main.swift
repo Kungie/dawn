@@ -44,5 +44,8 @@ case "icon":
     exit(0)
 default:
     Fonts.register()
-    DawnApp.main()
+    let app = NSApplication.shared
+    let delegate = AppDelegate()
+    app.delegate = delegate
+    app.run()
 }
