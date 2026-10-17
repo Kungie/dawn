@@ -5,8 +5,8 @@ import Foundation
 ///
 /// What it can and can't see: Claude Code in the terminal, in IDEs and in the desktop app's Code tab all write
 /// these logs. Chats in Claude.ai or the desktop app's chat do not, so for those the user can tell Dawn
-/// "I just started" by hand. Like most community tools, the window start is rounded down to the full hour.
-/// Treat the result as an estimate; Anthropic's own usage page is the source of truth.
+/// "I just started" by hand. Treat the result as an estimate; Claude's own reset time (from the status line)
+/// and Anthropic's usage page are the source of truth.
 final class UsageLog {
     struct Activity {
         let date: Date
@@ -82,13 +82,14 @@ final class UsageLog {
     }
 
     /// Splits activity into five-hour blocks the way the window works: a block starts at the first message
-    /// (rounded down to the hour) and anything after it ends starts the next block.
+    /// and anything after it ends starts the next block.
     static func blocks(from dates: [Date]) -> [DateInterval] {
         var blocks: [DateInterval] = []
         for date in dates.sorted() {
             if let last = blocks.last, date < last.end { continue }
-            let start = Calendar.current.dateInterval(of: .hour, for: date)?.start ?? date
-            blocks.append(DateInterval(start: start, duration: windowLength))
+            // The window runs five hours from the first message itself (checked against Claude's own
+            // reset time: no rounding down to the full hour).
+            blocks.append(DateInterval(start: date, duration: windowLength))
         }
         return blocks
     }

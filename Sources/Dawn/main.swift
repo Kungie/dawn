@@ -47,7 +47,7 @@ case "schedule":
     }
     if let m = Schedule.nextMorning(after: base, s, cal) { print("next morning", f.string(from: m)) }
     // With a real reset time from Claude: the follow-up goes out a minute after it.
-    let reset = base.addingTimeInterval(-30 * 60 + Schedule.windowLength) // e.g. Claude rounds 06:30 down to 06:00
+    let reset = base.addingTimeInterval(Schedule.windowLength + 40) // e.g. Claude saw the ping arrive 40 s later
     if let n = Schedule.nextFollowUp(at: base.addingTimeInterval(60), s, pings: [base], knownReset: reset, cal) {
         print("with Claude's reset at", f.string(from: reset), "-> follow-up", f.string(from: n))
     }
