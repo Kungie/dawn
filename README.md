@@ -13,7 +13,7 @@
 
 <p align="center"><img src="docs/readme.png" width="540" alt="Dawn in a Mac menu bar: a striped sun with 1:44 next to it, highlighted, and Dawn's panel hanging under it with a red pixel notch: 1:44 left in the window, resets at 11:00, started by Dawn's ping; the morning ping at 06:30 Mon–Fri; 9.5 hours started early this week."></p>
 
-<p align="center"><a href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.dmg"><b>Download for Mac</b></a></p>
+<p align="center"><a href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.dmg"><img src="https://img.shields.io/github/downloads/Kungie/dawn/total?label=Download%20for%20Mac&logo=apple&logoColor=f3e9d6&labelColor=e2231a&color=2a1b19&style=for-the-badge" alt="Download for Mac (total downloads)"></a></p>
 
 ---
 
