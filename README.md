@@ -10,7 +10,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-e2231a?labelColor=2a1b19&style=flat-square" alt="Licence: AGPL-3.0"></a>
 </p>
 
-<p align="center"><img src="docs/panel.png" width="380" alt="Dawn's menu bar panel: 1:44 left in the window, resets at 11:00, started by Dawn's ping; the morning ping at 06:30 Mon–Fri; 9.5 hours started early this week."></p>
+<p align="center"><img src="docs/readme.png" width="540" alt="Dawn in a Mac menu bar: a striped sun with 1:44 next to it, highlighted, and Dawn's panel hanging under it with a red pixel notch: 1:44 left in the window, resets at 11:00, started by Dawn's ping; the morning ping at 06:30 Mon–Fri; 9.5 hours started early this week."></p>
 
 <p align="center"><a href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.zip"><b>Download for Mac</b></a> · by <a href="https://github.com/Kungie">Vektor Labs</a></p>
 

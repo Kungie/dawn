@@ -46,6 +46,13 @@ enum Snapshot {
         }
         menuBar(to: dir.appendingPathComponent("menubar.png").path)
         print("wrote menubar.png")
+        let scene = ImageRenderer(content: MenuBarScene(model: DawnModel.demoModel()))
+        scene.scale = 2
+        if let tiff = scene.nsImage?.tiffRepresentation,
+           let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
+            try? png.write(to: dir.appendingPathComponent("readme.png"))
+            print("wrote readme.png")
+        }
     }
 
     /// A strip of dark menu bar with Dawn's item at 2x: sun plus countdown, as macOS draws it in dark mode.
@@ -104,5 +111,60 @@ enum Snapshot {
         guard let tiff = renderer.nsImage?.tiffRepresentation,
               let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+
+/// For the README: a strip of dark menu bar with Dawn's item highlighted, and the panel hanging under it
+/// with the notch pointing at the sun, as it looks on a Mac.
+struct MenuBarScene: View {
+    @ObservedObject var model: DawnModel
+
+    static let width: CGFloat = 540
+    private static let barHeight: CGFloat = 24
+    private static let rightPadding: CGFloat = 12
+    private static let spacing: CGFloat = 12
+    private static let clockWidth: CGFloat = 92
+    private static let iconWidth: CGFloat = 22
+    private static let dawnWidth: CGFloat = 66
+
+    /// Centre of Dawn's item, counted from the left edge.
+    private static var dawnCenter: CGFloat {
+        width - rightPadding - clockWidth - spacing - iconWidth - spacing - iconWidth - spacing - iconWidth - spacing - dawnWidth / 2
+    }
+
+    var body: some View {
+        let geometry = PanelGeometry()
+        let panelX = Self.dawnCenter - PanelView.width / 2
+        VStack(alignment: .leading, spacing: 3) {
+            bar
+            PanelContainer(model: model, geometry: geometry)
+                .padding(.leading, panelX)
+        }
+        .frame(width: Self.width, alignment: .leading)
+        .padding(.bottom, 24)
+    }
+
+    private var bar: some View {
+        let title = MenuBarIcon.title("1:44")
+        let font = (title.attribute(.font, at: 0, effectiveRange: nil) as? NSFont).map { Font($0) } ?? .system(size: 14)
+        return HStack(spacing: Self.spacing) {
+            Spacer(minLength: 0)
+            HStack(spacing: 5) {
+                Image(nsImage: MenuBarIcon.image(asking: false)).renderingMode(.template)
+                Text("1:44").font(font)
+            }
+            .frame(width: Self.dawnWidth, height: 20)
+            .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color.white.opacity(0.2)))
+            Image(systemName: "battery.75percent").frame(width: Self.iconWidth)
+            Image(systemName: "wifi").frame(width: Self.iconWidth)
+            Image(systemName: "magnifyingglass").frame(width: Self.iconWidth)
+            Text("Tue 09:16").font(.system(size: 13, weight: .medium)).frame(width: Self.clockWidth, alignment: .trailing)
+        }
+        .padding(.trailing, Self.rightPadding)
+        .foregroundColor(.white)
+        .font(.system(size: 13, weight: .medium))
+        .frame(width: Self.width, height: Self.barHeight)
+        .background(Color(red: 0.12, green: 0.11, blue: 0.11))
     }
 }
