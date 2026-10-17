@@ -1,0 +1,33 @@
+# Counts downloads of every release asset and writes them to downloads.json on the `badges` branch,
+# which the "Download for Mac" badge in the README reads through shields.io's endpoint badge.
+# (shields.io's own GitHub downloads badge often comes back "invalid", and GitHub then caches that.)
+name: Download count
+
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Count downloads and update the badge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq '.[].assets[].download_count' | awk '{s += $1} END {print s + 0}')
+          echo "downloads: $n"
+          git init -q badges && cd badges
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q origin badges; then git checkout -q -b badges FETCH_HEAD; else git checkout -q --orphan badges; fi
+          printf '{"schemaVersion":1,"label":"Download for Mac","message":"%s","labelColor":"e2231a","color":"2a1b19","namedLogo":"apple","logoColor":"f3e9d6","style":"for-the-badge"}\n' "$n" > downloads.json
+          git add downloads.json
+          git diff --cached --quiet && exit 0
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "Downloads: $n"
+          git push -q origin badges
