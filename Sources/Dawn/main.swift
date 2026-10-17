@@ -4,6 +4,7 @@ import AppKit
 //   Dawn                 the menu bar app
 //   Dawn hook [stop]     called by Claude Code's Notification / Stop hooks, forwards them to the app and exits
 //   Dawn statusline      Claude Code's status line: passes the real reset time on, then runs your own status line
+//   Dawn sync            the same as SYNC in the panel: one short ping to read Claude's real reset time
 //   Dawn hook-install    the same as Add next to "Claude Code hook" in Settings (hook-remove: Remove)
 //   Dawn ping-sound      plays the "Claude finished" sound
 //   Dawn schedule [demo] prints the morning ping and its 5 h 1 min follow-ups for today
@@ -19,6 +20,17 @@ case "hook-install", "hook-remove":
     // Same as Add / Remove next to "Claude Code hook" in Settings.
     if let error = args[1] == "hook-install" ? ClaudeHook.install() : ClaudeHook.remove() { print(error); exit(1) }
     print(ClaudeHook.isInstalled() ? "hook installed" : "hook removed")
+    exit(0)
+case "sync":
+    // Same as SYNC in the panel: one short ping, then hand Claude's reset time to the running app.
+    guard let claude = PingRunner.locateClaude() else { print("claude not found"); exit(1) }
+    let r = PingRunner.ping(claude: claude, retry: false)
+    let f = DateFormatter(); f.dateFormat = "EEE HH:mm:ss"
+    guard r.ok, let l = r.limit else { print(r.ok ? "sent, but Claude didn't report the window" : "failed: \(r.detail)"); exit(1) }
+    l.save()
+    DistributedNotificationCenter.default().postNotificationName(StatusLineCommand.notification, object: nil,
+        userInfo: ["resetsAt": l.resetsAt.timeIntervalSince1970, "used": l.usedPercent ?? -1], deliverImmediately: true)
+    print("Claude: window resets \(f.string(from: l.resetsAt)), \(l.usedPercent.map { "\(Int($0.rounded()))% used" } ?? "usage unknown")")
     exit(0)
 case "statusline":
     StatusLineCommand.run()
@@ -70,7 +82,9 @@ case "status":
         print("from Claude: resets \(f.string(from: l.resetsAt)), \(l.usedPercent.map { "\(Int($0))% used" } ?? "usage unknown"), seen \(f.string(from: l.updated))")
     }
     print("activity:    \(acts.count) Claude replies in the last 24 h (\(acts.filter(\.isPing).count) from pings)")
-    if let block = UsageLog.blocks(from: acts.map(\.date)).last, block.end > Date() {
+    if let l = WindowLimit.load(), l.resetsAt > Date() {
+        print("window:      until \(f.string(from: l.resetsAt)), \(Int(l.resetsAt.timeIntervalSinceNow / 60)) min left (from Claude)")
+    } else if let block = UsageLog.blocks(from: acts.map(\.date)).last, block.end > Date() {
         print("window:      \(f.string(from: block.start)) to \(f.string(from: block.end)), \(Int(block.end.timeIntervalSinceNow / 60)) min left (estimate)")
     } else {
         print("window:      none running")

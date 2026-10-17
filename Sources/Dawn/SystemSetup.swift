@@ -155,6 +155,7 @@ enum HookCommand {
         let data = FileHandle.standardInput.readDataToEndOfFile()
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         let cwd = (json["cwd"] as? String).map { ($0 as NSString).lastPathComponent } ?? ""
+        if cwd == PingRunner.projectSuffix { return } // Dawn's own ping: no dot, no sound
         var info = SessionInfo.current().userInfo
         info["project"] = cwd
         if stop {

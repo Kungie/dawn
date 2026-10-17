@@ -3,7 +3,7 @@ import Combine
 import Foundation
 
 struct FireRecord: Codable, Identifiable, Equatable {
-    enum Trigger: String, Codable { case scheduled, followUp, manual, skipped }
+    enum Trigger: String, Codable { case scheduled, followUp, manual, sync, skipped }
     var id = UUID()
     let date: Date
     let trigger: Trigger
@@ -198,7 +198,7 @@ final class DawnModel: ObservableObject {
         guard !demo else { return }
         now = Date()
         let day = now.addingTimeInterval(-24 * 3600)
-        let pings = (history.filter { $0.ok && $0.trigger != .skipped }.map(\.date) + pingActivity).filter { $0 > day }
+        let pings = (history.filter { $0.ok && $0.trigger != .skipped && $0.trigger != .sync }.map(\.date) + pingActivity).filter { $0 > day }
         let manual = manualStarts.filter { $0 > day }
         let all = ownActivity + pings + manual
         func source(of block: DateInterval) -> WindowSource {
@@ -256,7 +256,7 @@ final class DawnModel: ObservableObject {
     }
 
     /// Pings that actually went out (morning, follow-up or by hand).
-    private var pingDates: [Date] { history.filter { $0.ok && $0.trigger != .skipped }.map(\.date) }
+    private var pingDates: [Date] { history.filter { $0.ok && $0.trigger != .skipped && $0.trigger != .sync }.map(\.date) }
 
     private func checkFollowUp() {
         guard settings.enabled, settings.followUps, !firing, !demo else { return }
@@ -285,6 +285,9 @@ final class DawnModel: ObservableObject {
 
     func fireNow() { fire(.manual) }
 
+    /// The window is only estimated: send one short ping inside it to get Claude's own reset time.
+    func syncWithClaude() { fire(.sync) }
+
     private func fire(_ trigger: FireRecord.Trigger) {
         guard !firing else { return }
         firing = true
@@ -302,7 +305,13 @@ final class DawnModel: ObservableObject {
             let result = PingRunner.ping(claude: claude, model: model)
             Task { @MainActor in
                 self.firing = false
+                if let l = result.limit {
+                    l.save()
+                    self.limit = l
+                }
                 self.record(FireRecord(date: Date(), trigger: trigger, ok: result.ok, detail: result.detail))
+                // A refreshed window gets the space ping too (not the morning ping: you're probably asleep).
+                if result.ok, trigger == .followUp, self.settings.doneSound { SpacePing.play() }
                 if !result.ok { self.notice = "Ping failed: \(result.detail)" }
                 self.refreshNextFire()
                 self.rescan()

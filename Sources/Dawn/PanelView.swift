@@ -126,7 +126,7 @@ struct MainView: View {
             Text(statsText).font(Fonts.grotesk(13)).foregroundColor(Ident.cream2)
             Spacer()
             HStack(spacing: 4) {
-                ForEach(Array(model.history.prefix(4).reversed())) { r in
+                ForEach(Array(model.history.filter { $0.trigger != .sync }.prefix(4).reversed())) { r in
                     PingSquare(record: r)
                 }
             }
@@ -189,6 +189,7 @@ struct ScreenCard: View {
         var fill: Double
         var bottomLeft: String
         var bottomRight: String
+        var canSync = false
     }
 
     private var face: Face {
@@ -203,7 +204,8 @@ struct ScreenCard: View {
                         right: "RESETS \(Fmt.hm.string(from: w.interval.end))", rightColor: Ident.cream2,
                         big: DawnModel.hm(left), bigSize: 116, rise: 1, sunWidth: 96, fill: left / w.interval.duration,
                         bottomLeft: "FROM \(Fmt.hm.string(from: w.interval.start)) · \(sourceName(w.source))",
-                        bottomRight: w.official ? (w.usedPercent.map { "\(Int($0.rounded()))% USED" } ?? "FROM CLAUDE") : "ESTIMATE")
+                        bottomRight: w.official ? (w.usedPercent.map { "\(Int($0.rounded()))% USED" } ?? "FROM CLAUDE") : "ESTIMATE",
+                        canSync: !w.official)
         }
         if let next = model.nextFire {
             return Face(label: "Next ping", labelColor: Ident.dim, right: Fmt.day.string(from: next).uppercased(), rightColor: Ident.red,
@@ -249,7 +251,15 @@ struct ScreenCard: View {
             HStack {
                 Text(f.bottomLeft)
                 Spacer()
-                Text(f.bottomRight)
+                if f.canSync {
+                    Button("SYNC ↻") { model.syncWithClaude() }
+                        .buttonStyle(.plain)
+                        .foregroundColor(Ident.red)
+                        .pointerCursor()
+                        .help("This is an estimate. Sends one short ping inside the open window to get Claude's own reset time.")
+                } else {
+                    Text(f.bottomRight)
+                }
             }
             .font(Fonts.vt(18)).foregroundColor(Ident.dim).lineLimit(1)
             .padding(.top, 10)
@@ -372,9 +382,9 @@ struct SettingsView: View {
             }
 
             section("Sound") {
-                row("Space ping when Claude finishes") { DawnSwitch(isOn: $model.settings.doneSound) }
+                row("Space ping") { DawnSwitch(isOn: $model.settings.doneSound) }
                 HStack {
-                    Text(model.hookInstalled ? "Plays when Claude Code ends a task." : "Needs the Claude Code hook above.")
+                    Text(model.hookInstalled ? "When Claude Code ends a task and when Auto refresh starts a window." : "When Auto refresh starts a window. Add the hook above for finished tasks too.")
                         .font(Fonts.grotesk(11.5)).foregroundColor(Ident.dim)
                     Spacer()
                     Button("Play") { SpacePing.play() }.buttonStyle(GhostButtonStyle(compact: true))
@@ -428,7 +438,8 @@ struct SettingsView: View {
         case (.skipped, _): return "SKIPPED · WINDOW WAS OPEN"
         case (_, false): return "FAILED"
         case (.manual, true): return "SENT BY HAND"
-        case (.followUp, true): return "SENT · 5 H LATER"
+        case (.followUp, true): return "SENT · AUTO REFRESH"
+        case (.sync, true): return "SYNCED WITH CLAUDE"
         case (.scheduled, true): return "SENT"
         }
     }

@@ -17,6 +17,8 @@ enum PingRunner {
     struct Result {
         let ok: Bool
         let detail: String
+        /// Claude's own five-hour window after this ping (reset time and share used), when it said so.
+        var limit: WindowLimit? = nil
     }
 
     /// Finds `claude`: the usual install locations first, then the user's login shell PATH.
@@ -48,15 +50,46 @@ enum PingRunner {
                                                &assertion) == kIOReturnSuccess
         defer { if held { IOPMAssertionRelease(assertion) } }
 
-        var attempt = run(claude, ["-p", "ping", "--model", model], cwd: workDir, timeout: 120)
+        // stream-json: the same answer, plus Claude Code's rate_limit_event with the real reset time.
+        let args = ["-p", "ping", "--model", model, "--output-format", "stream-json", "--verbose"]
+        var attempt = run(claude, args, cwd: workDir, timeout: 120)
         if attempt.status != 0 && retry {
             Thread.sleep(forTimeInterval: 20)
-            attempt = run(claude, ["-p", "ping", "--model", model], cwd: workDir, timeout: 120)
+            attempt = run(claude, args, cwd: workDir, timeout: 120)
         }
-        let text = (attempt.status == 0 ? attempt.output : attempt.error ?? attempt.output) ?? ""
+        let parsed = parse(attempt.output ?? "")
+        if attempt.status == 0 {
+            return Result(ok: true, detail: parsed.answer.map { String($0.prefix(160)) } ?? "sent", limit: parsed.limit)
+        }
+        let text = (attempt.error?.isEmpty == false ? attempt.error : parsed.answer) ?? ""
         let short = text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(160)
-        if attempt.status == 0 { return Result(ok: true, detail: short.isEmpty ? "sent" : String(short)) }
-        return Result(ok: false, detail: short.isEmpty ? "claude exited with \(attempt.status)" : String(short))
+        return Result(ok: false, detail: short.isEmpty ? "claude exited with \(attempt.status)" : String(short), limit: parsed.limit)
+    }
+
+    /// Reads Claude Code's stream-json output: the final answer and the five-hour window from
+    /// `rate_limit_event.rate_limit_info` (`unifiedWindows.five_hour`, or the top level when it is the five-hour one).
+    static func parse(_ output: String) -> (answer: String?, limit: WindowLimit?) {
+        var answer: String?
+        var limit: WindowLimit?
+        for line in output.split(separator: "\n") {
+            guard let data = line.data(using: .utf8),
+                  let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { continue }
+            switch json["type"] as? String {
+            case "result":
+                answer = json["result"] as? String
+            case "rate_limit_event":
+                guard let info = json["rate_limit_info"] as? [String: Any] else { continue }
+                var window = (info["unifiedWindows"] as? [String: Any])?["five_hour"] as? [String: Any]
+                if window == nil, (info["rateLimitType"] as? String) == "five_hour" { window = info }
+                if let w = window, let reset = (w["resetsAt"] as? NSNumber)?.doubleValue {
+                    let used = (w["utilization"] as? NSNumber).map { $0.doubleValue * 100 }
+                    limit = WindowLimit(resetsAt: Date(timeIntervalSince1970: reset), usedPercent: used, updated: Date())
+                }
+            default:
+                break
+            }
+        }
+        return (answer, limit)
     }
 
     struct Output {
