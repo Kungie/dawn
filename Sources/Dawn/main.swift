@@ -2,14 +2,20 @@ import AppKit
 
 // Dawn is one binary with a few ways in:
 //   Dawn                 the menu bar app
-//   Dawn hook            called by Claude Code's Notification hook, forwards it to the app and exits
+//   Dawn hook [stop]     called by Claude Code's Notification / Stop hooks, forwards them to the app and exits
+//   Dawn ping-sound      plays the "Claude finished" sound
 //   Dawn snapshot <dir>  renders the panel with demo data (README screenshots)
 //   Dawn status          prints what Dawn sees: claude, the scheduled wake, the current window estimate
 //   Dawn icon <file>     renders the 1024 px app icon (used by scripts/build-app.sh)
 let args = CommandLine.arguments
 switch args.dropFirst().first {
 case "hook":
-    HookCommand.run()
+    HookCommand.run(stop: args.count > 2 && args[2] == "stop")
+    exit(0)
+case "ping-sound":
+    _ = NSApplication.shared
+    SpacePing.play()
+    Thread.sleep(forTimeInterval: 2.4)
     exit(0)
 case "--version":
     print("Dawn \(DawnInfo.version)")

@@ -136,11 +136,12 @@ struct StripedSun: View {
 
 /// CRT scanlines over the screen card.
 struct Scanlines: View {
+    var opacity: Double = 0.22
     var body: some View {
         Canvas { ctx, size in
             var y = 0.0
             while y < size.height {
-                ctx.fill(Path(CGRect(x: 0, y: y + 2, width: size.width, height: 1)), with: .color(.black.opacity(0.22)))
+                ctx.fill(Path(CGRect(x: 0, y: y + 2, width: size.width, height: 1)), with: .color(.black.opacity(opacity)))
                 y += 3
             }
         }
@@ -197,12 +198,12 @@ struct IdentToggleStyle: ToggleStyle {
 // MARK: - Menu bar icon
 
 enum MenuBarIcon {
-    /// An 18 pt template image: half a sun on a horizon with two cuts, and a dot when Claude Code is asking.
-    static func image(asking: Bool) -> NSImage {
-        let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+    /// An 18 pt template image: half a sun on a horizon with two cuts.
+    /// Claude Code waiting: a ringed dot top right. Claude finished: a solid dot top right.
+    static func image(asking: Bool, done: Bool = false) -> NSImage {
+        let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
             NSColor.black.setFill()
-            let horizon = NSRect(x: 1, y: 3, width: 16, height: 1.6)
-            horizon.fill()
+            NSRect(x: 1, y: 3, width: 16, height: 1.6).fill()
             let sun = NSBezierPath()
             sun.appendArc(withCenter: NSPoint(x: 9, y: 5.4), radius: 7, startAngle: 0, endAngle: 180)
             sun.close()
@@ -210,15 +211,141 @@ enum MenuBarIcon {
             NSGraphicsContext.current?.compositingOperation = .clear
             NSRect(x: 0, y: 6.6, width: 18, height: 1.0).fill()
             NSRect(x: 0, y: 9.2, width: 18, height: 0.8).fill()
-            if asking {
+            if asking || done {
+                // Knock out a gap around the mark so it reads against the sun.
                 NSBezierPath(ovalIn: NSRect(x: 11.2, y: 9.2, width: 7.6, height: 7.6)).fill()
                 NSGraphicsContext.current?.compositingOperation = .sourceOver
-                NSBezierPath(ovalIn: NSRect(x: 12.4, y: 10.4, width: 5.2, height: 5.2)).fill()
+                if asking {
+                    let ring = NSBezierPath(ovalIn: NSRect(x: 12.2, y: 10.2, width: 5.6, height: 5.6))
+                    ring.lineWidth = 1.2
+                    ring.stroke()
+                    NSBezierPath(ovalIn: NSRect(x: 14.0, y: 12.0, width: 2.0, height: 2.0)).fill()
+                } else {
+                    NSBezierPath(ovalIn: NSRect(x: 12.4, y: 10.4, width: 5.2, height: 5.2)).fill()
+                }
             }
-            _ = rect
             return true
         }
         img.isTemplate = true
         return img
+    }
+}
+
+// MARK: - Panel design (Claude Design, October 2026)
+
+/// The small header chip: red square, cream border, a V of a cream and a sand triangle cut by thin red lines.
+struct DawnChip: View {
+    var size: CGFloat = 22
+    var body: some View {
+        Canvas { ctx, sz in
+            let s = sz.width / 24
+            func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x * s, y: y * s) }
+            let frame = Path(CGRect(x: 1.25 * s, y: 1.25 * s, width: 21.5 * s, height: 21.5 * s))
+            ctx.fill(frame, with: .color(Ident.red))
+            ctx.stroke(frame, with: .color(Ident.cream), lineWidth: 2.5 * s)
+            var left = Path(); left.addLines([p(5.5, 5.5), p(9.6, 5.5), p(12, 12.6), p(12, 18.5)]); left.closeSubpath()
+            var right = Path(); right.addLines([p(18.5, 5.5), p(14.4, 5.5), p(12, 12.6), p(12, 18.5)]); right.closeSubpath()
+            ctx.fill(left, with: .color(Ident.cream))
+            ctx.fill(right, with: .color(Ident.sand))
+            for y in [6.45, 7.89, 9.34, 10.78, 12.23, 13.67, 15.11, 16.56] {
+                ctx.fill(Path(CGRect(x: 4 * s, y: y * s, width: 16 * s, height: 0.5 * s)), with: .color(Ident.red))
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
+/// "DAWN" in Archivo expanded with the stacked black and red cut-out shadow.
+struct Wordmark: View {
+    var text = "DAWN"
+    var size: CGFloat = 17
+    var body: some View {
+        let t = Text(text).font(Fonts.archivo(size)).tracking(size * 0.01)
+        ZStack {
+            t.foregroundColor(Ident.redDeep).offset(y: 4)
+            t.foregroundColor(Ident.black).offset(y: 3)
+            t.foregroundColor(Ident.red).offset(y: 2)
+            t.foregroundColor(Ident.black).offset(y: 1)
+            t.foregroundColor(Ident.cream)
+        }
+        .padding(.bottom, 4)
+    }
+}
+
+/// Dawn's sun (viewBox 100 × 50): a red half-disc on the bottom edge, cut by black bands that thicken downwards.
+/// `rise` 1 = fully up, 0 = sunk by half its height (the "next ping" state).
+struct DawnSun: View {
+    var rise: Double = 1
+    var body: some View {
+        Canvas { ctx, sz in
+            let s = sz.width / 100
+            let drop = (1 - rise) * 26 * s
+            ctx.clip(to: Path(CGRect(origin: .zero, size: sz)))
+            // A full disc centred on the bottom edge; the frame clips it to the upper half.
+            let sun = Path(ellipseIn: CGRect(x: 8 * s, y: 8 * s + drop, width: 84 * s, height: 84 * s))
+            ctx.fill(sun, with: .color(Ident.red))
+            ctx.clip(to: sun)
+            // Risen: four bands. Low on the horizon: the two thin ones from the design.
+            let cuts: [(Double, Double)] = rise > 0.5 ? [(27, 1.6), (34, 2.6), (40, 3.4), (44.5, 3.8)] : [(38, 1.4), (44, 2.4)]
+            for (y, h) in cuts {
+                ctx.fill(Path(CGRect(x: 0, y: y * s, width: sz.width, height: h * s)), with: .color(Ident.black))
+            }
+        }
+        .aspectRatio(2, contentMode: .fit)
+    }
+}
+
+/// The 36 × 20 square switch from the design.
+struct DawnSwitch: View {
+    @Binding var isOn: Bool
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                Rectangle().fill(isOn ? Ident.red : Ident.line)
+                Rectangle().fill(isOn ? Ident.cream : Ident.dim).frame(width: 16, height: 16).padding(2)
+            }
+            .frame(width: 36, height: 20)
+            .animation(.easeOut(duration: 0.15), value: isOn)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isOn ? "on" : "off")
+    }
+}
+
+/// The big red action with a hard red-deep shadow under it.
+struct DawnPrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Fonts.archivo(13, weight: 900))
+            .tracking(0.52)
+            .textCase(.uppercase)
+            .foregroundColor(Ident.cream)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(ZStack {
+                Rectangle().fill(Ident.redDeep).offset(y: configuration.isPressed ? 1 : 3)
+                Rectangle().fill(Ident.red)
+            })
+            .offset(y: configuration.isPressed ? 2 : 0)
+            .padding(.bottom, 3)
+            .contentShape(Rectangle())
+    }
+}
+
+/// Plain text actions: "Settings", "Quit", "I started in Claude.ai".
+struct DawnTextButtonStyle: ButtonStyle {
+    var color: Color = Ident.cream2
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Fonts.grotesk(13, weight: 500))
+            .foregroundColor(configuration.isPressed ? Ident.cream : color)
+            .contentShape(Rectangle())
+    }
+}
+
+extension View {
+    /// Space Mono bold uppercase label, the design's section caption.
+    func dawnLabel(_ color: Color = Ident.dim) -> some View {
+        self.font(Fonts.mono(11, bold: true)).tracking(1.1).textCase(.uppercase).foregroundColor(color)
     }
 }

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.1.0"
+    static let version = "0.2.0"
 }
 
 struct DawnApp: App {
@@ -32,13 +32,13 @@ enum Snapshot {
     static func run(to folder: String) {
         let dir = URL(fileURLWithPath: folder)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let shots: [(String, DawnModel, Bool)] = [
-            ("panel", DawnModel.demoModel(), true),
-            ("panel-asking", DawnModel.demoModel(asking: true), false),
-            ("panel-idle", DawnModel.demoModel(idle: true), false),
+        let shots: [(String, DawnModel)] = [
+            ("panel", DawnModel.demoModel()),
+            ("panel-asking", DawnModel.demoModel(asking: true)),
+            ("panel-idle", DawnModel.demoModel(idle: true)),
+            ("panel-settings", DawnModel.demoModel(settings: true)),
         ]
-        for (name, model, setup) in shots {
-            model.showSetup = setup
+        for (name, model) in shots {
             let renderer = ImageRenderer(content: PanelView(model: model))
             renderer.scale = 2
             guard let image = renderer.nsImage, let tiff = image.tiffRepresentation,

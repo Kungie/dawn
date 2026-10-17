@@ -17,6 +17,25 @@ struct Settings: Codable, Equatable {
     var minute = 30
     var weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7] // Calendar weekday numbers, 1 = Sunday
     var model = "haiku"
+    var doneSound = true
+
+    init(enabled: Bool = false, hour: Int = 6, minute: Int = 30, weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7],
+         model: String = "haiku", doneSound: Bool = true) {
+        self.enabled = enabled; self.hour = hour; self.minute = minute
+        self.weekdays = weekdays; self.model = model; self.doneSound = doneSound
+    }
+
+    // Settings saved by an older version simply lack the newer keys; keep everything else.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = Settings()
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? d.enabled
+        hour = try c.decodeIfPresent(Int.self, forKey: .hour) ?? d.hour
+        minute = try c.decodeIfPresent(Int.self, forKey: .minute) ?? d.minute
+        weekdays = try c.decodeIfPresent(Set<Int>.self, forKey: .weekdays) ?? d.weekdays
+        model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
+        doneSound = try c.decodeIfPresent(Bool.self, forKey: .doneSound) ?? d.doneSound
+    }
 }
 
 struct Ask: Equatable {
@@ -42,6 +61,8 @@ final class DawnModel: ObservableObject {
     @Published private(set) var history: [FireRecord]
     @Published private(set) var firing = false
     @Published private(set) var ask: Ask?
+    /// Claude Code finished a task (Stop hook). Shown as a dot in the menu bar until seen.
+    @Published private(set) var done: Ask?
     @Published private(set) var claudePath: String?
     @Published private(set) var claudeChecked = false
     @Published private(set) var wakeStatus: String?
@@ -49,7 +70,7 @@ final class DawnModel: ObservableObject {
     @Published private(set) var loginItem = false
     @Published private(set) var nextFire: Date?
     @Published var notice: String?
-    @Published var showSetup = false
+    @Published var showSettings = false
     /// Hours of window that were already running when your own work started, this week (Claude Code only).
     @Published private(set) var earlyHoursThisWeek: Double = 0
 
@@ -95,14 +116,20 @@ final class DawnModel: ObservableObject {
             let message = note.userInfo?["message"] as? String ?? "Claude Code is waiting for you"
             let project = note.userInfo?["project"] as? String ?? ""
             Task { @MainActor in
+                self?.done = nil
                 self?.ask = Ask(message: message, project: project, date: Date())
             }
+        })
+        observers.append(DistributedNotificationCenter.default().addObserver(forName: HookCommand.doneNotification, object: nil, queue: .main) { [weak self] note in
+            let project = note.userInfo?["project"] as? String ?? ""
+            Task { @MainActor in self?.claudeFinished(project: project) }
         })
     }
 
     private func tick() {
         now = Date()
         if let a = ask, now.timeIntervalSince(a.date) > 15 * 60 { ask = nil }
+        if let d = done, now.timeIntervalSince(d.date) > 30 * 60 { done = nil }
         updateWindow()
         checkSchedule()
     }
@@ -270,6 +297,13 @@ final class DawnModel: ObservableObject {
     }
 
     func dismissAsk() { ask = nil }
+    func dismissDone() { done = nil }
+
+    private func claudeFinished(project: String) {
+        ask = nil
+        done = Ask(message: "Claude finished", project: project, date: Date())
+        if settings.doneSound { SpacePing.play() }
+    }
 
     // MARK: derived
 
@@ -279,6 +313,22 @@ final class DawnModel: ObservableObject {
         let h12 = (total / 60) % 12 == 0 ? 12 : (total / 60) % 12
         let ampm = total / 60 < 12 ? "am" : "pm"
         return s.contains("wake") && s.contains(String(format: "%d:%02d%@", h12, total % 60, ampm))
+    }
+
+    /// Something in Settings needs the user: Claude Code missing, or the morning ping is on without a matching wake.
+    var setupNeedsAttention: Bool {
+        claudeChecked && (claudePath == nil || (settings.enabled && !wakeMatchesSchedule))
+    }
+
+    /// "Mon–Fri", "Every day", "Weekends" or a short list like "Mon, Wed, Fri".
+    var daysSummary: String {
+        let d = settings.weekdays
+        if d.count == 7 { return "Every day" }
+        if d == [2, 3, 4, 5, 6] { return "Mon–Fri" }
+        if d == [1, 7] { return "Weekends" }
+        if d.isEmpty { return "No days" }
+        let names = [2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat", 1: "Sun"]
+        return [2, 3, 4, 5, 6, 7, 1].filter(d.contains).compactMap { names[$0] }.joined(separator: ", ")
     }
 
     /// The short text next to the menu bar icon: time left in the window.
@@ -294,7 +344,7 @@ final class DawnModel: ObservableObject {
 
     // MARK: demo state for README screenshots
 
-    static func demoModel(asking: Bool = false, idle: Bool = false) -> DawnModel {
+    static func demoModel(asking: Bool = false, idle: Bool = false, settings: Bool = false) -> DawnModel {
         let m = DawnModel()
         m.demo = true
         m.settings = Settings(enabled: true, hour: 6, minute: 30, weekdays: [2, 3, 4, 5, 6], model: "haiku")
@@ -313,6 +363,11 @@ final class DawnModel: ObservableObject {
         m.loginItem = true
         m.earlyHoursThisWeek = 9.5
         m.nextFire = cal.date(byAdding: .day, value: 1, to: today630)
+        m.showSettings = settings
+        m.history = [true, true, false, true].enumerated().map { i, ok in
+            FireRecord(date: today630.addingTimeInterval(Double(-i) * 86400), trigger: ok ? .scheduled : .skipped, ok: true,
+                       detail: ok ? "Pong!" : "a window was already running")
+        }
         if asking { m.ask = Ask(message: "Claude needs your permission to use Bash", project: "your-app", date: m.now) }
         return m
     }

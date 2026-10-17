@@ -42,8 +42,8 @@ enum WakeSchedule {
     }
 }
 
-/// Adds or removes Dawn's entry in Claude Code's Notification hook (~/.claude/settings.json).
-/// Claude Code then calls `Dawn hook` whenever it is waiting for you, and the menu bar shows a dot.
+/// Adds or removes Dawn's entries in Claude Code's hooks (~/.claude/settings.json): `Notification` calls
+/// `Dawn hook` when Claude Code is waiting for you, `Stop` calls `Dawn hook stop` when it has finished a task.
 /// Other settings and hooks are kept; a backup is written next to the file before the first change.
 enum ClaudeHook {
     static var settingsURL: URL {
@@ -54,9 +54,12 @@ enum ClaudeHook {
         "\"\(Bundle.main.executablePath ?? "/Applications/Dawn.app/Contents/MacOS/Dawn")\" hook"
     }
 
+    /// Hook event → the command Claude Code runs for it.
+    private static var events: [String: String] { ["Notification": command, "Stop": command + " stop"] }
+
     private static func isOurs(_ entry: Any) -> Bool {
         guard let hooks = (entry as? [String: Any])?["hooks"] as? [[String: Any]] else { return false }
-        return hooks.contains { (($0["command"] as? String) ?? "").hasSuffix("/Contents/MacOS/Dawn\" hook") }
+        return hooks.contains { (($0["command"] as? String) ?? "").contains("/Contents/MacOS/Dawn\" hook") }
     }
 
     private static func load() throws -> [String: Any] {
@@ -68,9 +71,8 @@ enum ClaudeHook {
     }
 
     static func isInstalled() -> Bool {
-        guard let json = try? load(), let hooks = json["hooks"] as? [String: Any],
-              let list = hooks["Notification"] as? [Any] else { return false }
-        return list.contains(where: isOurs)
+        guard let json = try? load(), let hooks = json["hooks"] as? [String: Any] else { return false }
+        return events.keys.allSatisfy { ((hooks[$0] as? [Any]) ?? []).contains(where: isOurs) }
     }
 
     static func install() -> String? { update(add: true) }
@@ -80,9 +82,11 @@ enum ClaudeHook {
         do {
             var json = try load()
             var hooks = json["hooks"] as? [String: Any] ?? [:]
-            var list = (hooks["Notification"] as? [Any] ?? []).filter { !isOurs($0) }
-            if add { list.append(["matcher": "", "hooks": [["type": "command", "command": command]]]) }
-            if list.isEmpty { hooks.removeValue(forKey: "Notification") } else { hooks["Notification"] = list }
+            for (event, cmd) in events {
+                var list = (hooks[event] as? [Any] ?? []).filter { !isOurs($0) }
+                if add { list.append(["matcher": "", "hooks": [["type": "command", "command": cmd]]]) }
+                if list.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = list }
+            }
             if hooks.isEmpty { json.removeValue(forKey: "hooks") } else { json["hooks"] = hooks }
 
             let fm = FileManager.default
@@ -100,15 +104,21 @@ enum ClaudeHook {
     }
 }
 
-/// `Dawn hook`: called by Claude Code with the notification as JSON on stdin. Forwards it to the running app and exits.
+/// `Dawn hook [stop]`: called by Claude Code with the event as JSON on stdin. Forwards it to the running app and exits.
 enum HookCommand {
     static let notification = Notification.Name("labs.vektor.dawn.ask")
+    static let doneNotification = Notification.Name("labs.vektor.dawn.done")
 
-    static func run() {
+    static func run(stop: Bool) {
         let data = FileHandle.standardInput.readDataToEndOfFile()
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
-        let message = (json["message"] as? String) ?? "Claude Code is waiting for you"
         let cwd = (json["cwd"] as? String).map { ($0 as NSString).lastPathComponent } ?? ""
+        if stop {
+            DistributedNotificationCenter.default().postNotificationName(
+                doneNotification, object: nil, userInfo: ["project": cwd], deliverImmediately: true)
+            return
+        }
+        let message = (json["message"] as? String) ?? "Claude Code is waiting for you"
         DistributedNotificationCenter.default().postNotificationName(
             notification, object: nil,
             userInfo: ["message": String(message.prefix(200)), "project": cwd],

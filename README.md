@@ -12,15 +12,17 @@ Dawn moves the clock. At 06:30, or whenever you set it, it wakes your sleeping M
 
 It doesn't give you more Claude. Your weekly limit stays exactly where Anthropic put it, and the ping is one short message to the smallest model. Dawn only moves the timing.
 
-<p align="center"><img src="docs/panel.png" width="340" alt="Dawn's menu bar panel: a countdown of 1:44 left in the window, reset at 11:00, started by Dawn's ping; the morning ping set to 06:30 on weekdays; setup checks and the last four pings."></p>
+<p align="center"><img src="docs/panel.png" width="340" alt="Dawn's menu bar panel: 1:44 left in the window, resets at 11:00, started by Dawn's ping; the morning ping at 06:30 Mon–Fri; 9.5 hours started early this week."></p>
 
 ## What's in the menu bar
 
 A small striped sun, and while a window is running, the time left in it. Click it and you get Dawn's screen: the countdown, when the window resets, and who started it. When no window is running it shows when the next ping goes out.
 
-If you add the Claude Code hook (one click in Setup), the sun gets a dot whenever Claude Code is waiting for you, and the panel shows what it's asking.
+If you add the Claude Code hook (one click in Settings), the sun gets a ringed dot whenever Claude Code is waiting for you, and the panel shows what it's asking. When Claude finishes a task, the sun gets a solid dot and Dawn plays a short space ping. The sound has its own switch in Settings.
 
-<p align="center"><img src="docs/panel-asking.png" width="340" alt="The panel with a red banner: Claude Code is waiting, Claude needs your permission to use Bash."></p>
+<p align="center"><img src="docs/panel-asking.png" width="340" alt="The panel with a red banner: Claude Code is waiting, Claude needs your permission to use Bash."> &nbsp; <img src="docs/panel-settings.png" width="340" alt="Dawn's settings: morning ping time and days, setup checks for Claude Code, the scheduled wake and the hook, the space ping switch, open at login, and the last four pings."></p>
+
+Everything you set once lives behind **Settings** at the bottom of the panel: the morning ping time and days, the setup checks, the sound and open at login. The panel itself stays a clock.
 
 ## Install
 
@@ -38,7 +40,7 @@ git clone https://github.com/Kungie/dawn.git
 cd dawn && make install
 ```
 
-That builds `Dawn.app`, copies it to `/Applications` and opens it. Then, in the panel, switch on **Morning ping**, pick a time and days, and under **Setup** click **Set up** next to *Wake the Mac*. macOS asks for your administrator password once, because scheduling a wake is a system setting.
+That builds `Dawn.app`, copies it to `/Applications` and opens it. Then open **Settings** in the panel, switch on the morning ping, pick a time and days, and click **Set up** next to *Wake the Mac*. macOS asks for your administrator password once, because scheduling a wake is a system setting.
 
 `make app` builds a universal `build/Dawn.app` and `build/Dawn.zip`, signed ad hoc.
 
@@ -52,7 +54,7 @@ That builds `Dawn.app`, copies it to `/Applications` and opens it. Then, in the 
 
 **The countdown is an estimate.** Dawn reads the timestamps of Claude's replies in Claude Code's local logs (`~/.claude/projects`), the same logs community tools use, and rounds the window start down to the hour. It only sees Claude Code: the terminal, IDEs and the desktop app's Code tab. Chats in Claude.ai or the desktop app's chat don't appear there, so if you start your day in one of those, click **I started in Claude.ai**. Anthropic's own usage page is the source of truth.
 
-**The hook.** *Add* writes one entry under `hooks.Notification` in `~/.claude/settings.json`, keeps everything else, and saves a backup next to it the first time (`settings.json.dawn-backup`). Claude Code then runs `Dawn hook`, which passes the message to the app and exits. *Remove* takes the entry out again.
+**The hook.** *Add* writes two entries in `~/.claude/settings.json`, one under `hooks.Notification` and one under `hooks.Stop`, keeps everything else, and saves a backup next to it the first time (`settings.json.dawn-backup`). Claude Code then runs `Dawn hook` when it's waiting for you and `Dawn hook stop` when it has finished; both pass a short message to the app and exit. *Remove* takes the entries out again. The space ping is made in code when it plays; no sound files ship with the app.
 
 **Privacy.** Nothing leaves your Mac except the ping itself, which goes to Anthropic through Claude Code like any other message you send. Dawn has no telemetry, no account and no server.
 
@@ -64,16 +66,16 @@ Dawn is an independent project by Vektor Labs and is not affiliated with, endors
 
 ## For tinkerers
 
-Dawn is one Swift package with no dependencies. `Sources/Dawn` has the menu bar app (`DawnApp`, `PanelView`), the window estimate (`UsageLog`), the ping (`PingRunner`), the wake, hook and login item (`SystemSetup`) and the Ident theme (`Theme`). The same binary has a few command line modes:
+Dawn is one Swift package with no dependencies. `Sources/Dawn` has the menu bar app (`DawnApp`, `PanelView`), the window estimate (`UsageLog`), the ping (`PingRunner`), the wake, hook and login item (`SystemSetup`), the space ping (`SpacePing`) and the Ident theme (`Theme`). The same binary has a few command line modes:
 
 ```bash
 /Applications/Dawn.app/Contents/MacOS/Dawn status
 ```
 
-`status` prints what Dawn sees: where `claude` is, the scheduled wake, the hook, and the current window estimate. `hook` is what Claude Code calls. `snapshot <folder>` renders the panel with demo data (that's where the pictures above come from), and `icon <file>` draws the app icon.
+`status` prints what Dawn sees: where `claude` is, the scheduled wake, the hook, and the current window estimate. `hook` and `hook stop` are what Claude Code calls. `ping-sound` plays the finish sound. `snapshot <folder>` renders the panel with demo data (that's where the pictures above come from), and `icon <file>` draws the app icon.
 
 `make app` builds `build/Dawn.app`, `make run` opens it, `make snapshots` refreshes the pictures in `docs/`.
 
 ## Licence
 
-The code is MIT licensed, see [LICENSE](LICENSE). The bundled fonts (Archivo, VT323, Space Grotesk, Space Mono) are under the SIL Open Font License 1.1; their licence files sit next to them in `Resources/Fonts`.
+Dawn is free software under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0): you can use, study, change and share it, and if you share a changed version, you share its source under the same licence. See [NOTICE](NOTICE). The bundled fonts (Archivo, VT323, Space Grotesk, Space Mono) are under the SIL Open Font License 1.1; their licence files sit next to them in `Resources/Fonts`.

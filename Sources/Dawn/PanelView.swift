@@ -1,266 +1,250 @@
 import AppKit
 import SwiftUI
 
-/// The window that drops down from the menu bar.
+/// The window that drops down from the menu bar: the main face, or Settings.
 struct PanelView: View {
     @ObservedObject var model: DawnModel
-
-    private var showSetup: Bool { model.showSetup }
 
     static let width: CGFloat = 340
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            ScreenCard(model: model).padding(.horizontal, 14)
-            if let ask = model.ask { AskBanner(ask: ask) { model.dismissAsk() }.padding(.horizontal, 14).padding(.top, 8) }
-            schedule.padding(.horizontal, 14).padding(.top, 14)
-            divider
-            setup.padding(.horizontal, 14)
-            if !model.history.isEmpty { divider; recent.padding(.horizontal, 14) }
-            if let notice = model.notice {
-                Text(notice).font(Fonts.grotesk(11.5)).foregroundColor(Ident.red)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 14).padding(.top, 10)
-                    .onTapGesture { model.notice = nil }
-            }
-            footer.padding(14)
+        Group {
+            if model.showSettings { SettingsView(model: model) } else { MainView(model: model) }
         }
         .frame(width: Self.width)
         .background(Ident.black)
+        .overlay(Rectangle().strokeBorder(Ident.line, lineWidth: 1))
         .foregroundColor(Ident.cream)
         .environment(\.colorScheme, .dark)
     }
+}
 
-    private var divider: some View {
-        Rectangle().fill(Ident.line).frame(height: 1).padding(.vertical, 12)
-    }
-
-    // MARK: header
-
-    private var header: some View {
+struct PanelHeader: View {
+    var trailing: String?
+    var body: some View {
         HStack(spacing: 10) {
-            IdentChip(size: 18)
-            Text("DAWN").font(Fonts.archivo(17)).tracking(-0.3)
+            DawnChip(size: 22)
+            Wordmark()
             Spacer()
-            Text("VEKTOR LABS").font(Fonts.mono(9, bold: true)).foregroundColor(Ident.red)
+            if let trailing { Text(trailing).dawnLabel() }
         }
-        .padding(.horizontal, 14).padding(.top, 14).padding(.bottom, 12)
+        .padding(EdgeInsets(top: 14, leading: 16, bottom: 12, trailing: 16))
     }
+}
 
-    // MARK: schedule
-
-    private var schedule: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Toggle(isOn: $model.settings.enabled) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Morning ping").font(Fonts.grotesk(13, weight: 600))
-                    Text("Starts your Claude window before you sit down.")
-                        .font(Fonts.grotesk(11)).foregroundColor(Ident.dim)
-                }
-            }
-            .toggleStyle(IdentToggleStyle())
-
-            HStack(spacing: 8) {
-                TimeStepper(value: $model.settings.hour, range: 0...23, step: 1)
-                Text(":").font(Fonts.vt(26)).foregroundColor(Ident.dim)
-                TimeStepper(value: $model.settings.minute, range: 0...55, step: 5)
-                Spacer()
-                DayPicker(days: $model.settings.weekdays)
-            }
-            .opacity(model.settings.enabled ? 1 : 0.45)
+/// A row separated from the one above by a hairline.
+private struct Ruled<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(Ident.line).frame(height: 1)
+            content()
         }
     }
+}
 
-    // MARK: setup
+// MARK: - Main
 
-    private var setup: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Button { withAnimation(.easeOut(duration: 0.15)) { model.showSetup.toggle() } } label: {
-                HStack {
-                    Text("SETUP").font(Fonts.mono(10, bold: true)).foregroundColor(Ident.dim)
-                    if !setupComplete { Rectangle().fill(Ident.red).frame(width: 6, height: 6) }
-                    Spacer()
-                    Text(showSetup ? "–" : "+").font(Fonts.mono(12, bold: true)).foregroundColor(Ident.dim)
-                }
-                .contentShape(Rectangle())
+struct MainView: View {
+    @ObservedObject var model: DawnModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            PanelHeader()
+            if let ask = model.ask {
+                AskBanner(ask: ask) { model.dismissAsk() }.padding(.horizontal, 12).padding(.bottom, 10)
+            } else if let done = model.done {
+                DoneBanner(done: done) { model.dismissDone() }.padding(.horizontal, 12).padding(.bottom, 10)
             }
-            .buttonStyle(.plain)
+            ScreenCard(model: model).padding(.horizontal, 12)
 
-            if showSetup || !setupComplete {
-                SetupRow(title: "Claude Code",
-                         status: model.claudePath.map { ($0 as NSString).abbreviatingWithTildeInPath } ?? (model.claudeChecked ? "not found: install it and sign in once" : "looking…"),
-                         ok: model.claudePath != nil) {
-                    if model.claudePath == nil {
-                        Button("Install") { NSWorkspace.shared.open(URL(string: "https://docs.claude.com/en/docs/claude-code/setup")!) }
-                            .buttonStyle(GhostButtonStyle(compact: true))
-                    } else {
-                        Button("Recheck") { model.refreshSystem() }.buttonStyle(GhostButtonStyle(compact: true))
-                    }
-                }
-                SetupRow(title: "Wake the Mac",
-                         status: model.wakeStatus.map { $0 } ?? "no scheduled wake, the Mac must already be awake",
-                         ok: model.wakeMatchesSchedule) {
-                    if model.wakeMatchesSchedule {
-                        Button("Remove") { model.removeWake() }.buttonStyle(GhostButtonStyle(compact: true))
-                    } else {
-                        Button(model.wakeStatus == nil ? "Set up" : "Replace") { model.setUpWake() }.buttonStyle(GhostButtonStyle(compact: true))
-                    }
-                }
-                SetupRow(title: "Claude Code hook",
-                         status: model.hookInstalled ? "a dot appears when Claude Code waits for you" : "off",
-                         ok: model.hookInstalled) {
-                    Button(model.hookInstalled ? "Remove" : "Add") { model.toggleHook() }.buttonStyle(GhostButtonStyle(compact: true))
-                }
-                Toggle(isOn: Binding(get: { model.loginItem }, set: { model.setLoginItem($0) })) {
-                    Text("Open at login").font(Fonts.grotesk(12, weight: 500))
-                }
-                .toggleStyle(IdentToggleStyle())
+            if model.window != nil {
+                morningRow
+            } else {
+                actions
             }
+
+            if let notice = model.notice {
+                Text(notice).font(Fonts.grotesk(12)).foregroundColor(Ident.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16).padding(.bottom, 12)
+                    .onTapGesture { model.notice = nil }
+            }
+
+            Ruled { stats.padding(.horizontal, 16).padding(.vertical, 12) }
+            Ruled { footer.padding(.horizontal, 16).padding(.vertical, 12) }
         }
     }
 
-    private var setupComplete: Bool {
-        model.claudePath != nil && (!model.settings.enabled || model.wakeMatchesSchedule)
+    private var morningRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Morning ping").dawnLabel()
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(String(format: "%02d:%02d", model.settings.hour, model.settings.minute))
+                        .font(Fonts.vt(34)).foregroundColor(model.settings.enabled ? Ident.cream : Ident.dim)
+                    Text(model.settings.enabled ? model.daysSummary : "Off")
+                        .font(Fonts.grotesk(13)).foregroundColor(Ident.cream2)
+                }
+            }
+            Spacer()
+            DawnSwitch(isOn: $model.settings.enabled)
+        }
+        .padding(EdgeInsets(top: 18, leading: 16, bottom: 16, trailing: 16))
     }
 
-    // MARK: recent
+    private var actions: some View {
+        VStack(spacing: 12) {
+            Button(model.firing ? "Sending…" : "Start a window now") { model.fireNow() }
+                .buttonStyle(DawnPrimaryButtonStyle())
+                .disabled(model.firing)
+                .help("Sends one short message through Claude Code now.")
+            Button("I started in Claude.ai") { model.markStartedNow() }
+                .buttonStyle(DawnTextButtonStyle())
+                .help("Chats in Claude.ai and the desktop app don't show up in Claude Code's logs. Tell Dawn here.")
+        }
+        .padding(16)
+    }
 
-    private var recent: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text("RECENT").font(Fonts.mono(10, bold: true)).foregroundColor(Ident.dim)
-                Spacer()
-                if model.earlyHoursThisWeek > 0 {
-                    Text(String(format: "%.1f H STARTED EARLY THIS WEEK", model.earlyHoursThisWeek))
-                        .font(Fonts.vt(15)).foregroundColor(Ident.red)
+    private var stats: some View {
+        HStack {
+            Text(statsText).font(Fonts.grotesk(13)).foregroundColor(Ident.cream2)
+            Spacer()
+            HStack(spacing: 4) {
+                ForEach(Array(model.history.prefix(4).reversed())) { r in
+                    PingSquare(record: r)
                 }
             }
-            .padding(.bottom, 3)
-            ForEach(model.history.prefix(4)) { r in
-                HStack(spacing: 8) {
-                    Text(Fmt.day.string(from: r.date).uppercased()).frame(width: 34, alignment: .leading)
-                    Text(Fmt.hm.string(from: r.date))
-                    Text(label(r)).foregroundColor(r.ok ? (r.trigger == .skipped ? Ident.dim : Ident.ok) : Ident.red)
-                    Spacer()
-                }
-                .font(Fonts.vt(16)).foregroundColor(Ident.cream2)
-                .help(r.detail)
-            }
+            .help("The last four pings, oldest on the left. Filled: sent. Outlined: skipped. Red: failed.")
         }
     }
 
-    private func label(_ r: FireRecord) -> String {
-        switch (r.trigger, r.ok) {
-        case (.skipped, _): return "SKIPPED · WINDOW WAS OPEN"
-        case (_, false): return "FAILED"
-        case (.manual, true): return "PING · BY HAND"
-        case (.scheduled, true): return "PING · OK"
-        }
+    private var statsText: String {
+        if model.earlyHoursThisWeek > 0 { return String(format: "%.1f h started early this week", model.earlyHoursThisWeek) }
+        return model.history.isEmpty ? "No pings yet" : "No early hours yet this week"
     }
-
-    // MARK: footer
 
     private var footer: some View {
-        VStack(spacing: 8) {
-            Button { model.fireNow() } label: { Text(model.firing ? "PINGING…" : "START A WINDOW NOW") }
-                .buttonStyle(RedButtonStyle())
-                .disabled(model.firing || model.window != nil)
-                .opacity(model.window != nil ? 0.45 : 1)
-                .help(model.window != nil ? "A window is already running." : "Sends one short message through Claude Code now.")
-            HStack {
-                Button("I started in Claude.ai") { model.markStartedNow() }
-                    .buttonStyle(GhostButtonStyle(compact: true))
-                    .help("Chats in Claude.ai and the desktop app don't show up in Claude Code's logs. Tell Dawn here.")
-                Spacer()
-                Button("Quit") { NSApp.terminate(nil) }.buttonStyle(GhostButtonStyle(compact: true))
+        HStack {
+            Button { model.showSettings = true } label: {
+                HStack(spacing: 6) {
+                    Text("Settings")
+                    if model.setupNeedsAttention { Rectangle().fill(Ident.red).frame(width: 6, height: 6) }
+                }
             }
+            .buttonStyle(DawnTextButtonStyle())
+            Spacer()
+            Button("Quit") { NSApp.terminate(nil) }.buttonStyle(DawnTextButtonStyle(color: Ident.dim))
+        }
+    }
+}
+
+struct PingSquare: View {
+    let record: FireRecord
+    var body: some View {
+        if !record.ok {
+            Rectangle().fill(Ident.red).frame(width: 10, height: 10)
+        } else if record.trigger == .skipped {
+            Rectangle().strokeBorder(Ident.dim, lineWidth: 1).frame(width: 10, height: 10)
+        } else {
+            Rectangle().fill(Ident.cream).frame(width: 10, height: 10)
         }
     }
 }
 
 // MARK: - Screen card
 
-/// Dawn's "screen": the same black glass, VT323 type and striped sun as the instrument.
+/// Dawn's "screen": black glass with a red glow and scanlines, VT323 numerals and the striped sun.
 struct ScreenCard: View {
     @ObservedObject var model: DawnModel
 
-    var body: some View {
-        ZStack {
-            RadialGradient(colors: [Color(hex: 0x1C0B09), Ident.black], center: .center, startRadius: 4, endRadius: 220)
-            content.padding(14)
-            Scanlines()
-        }
-        .frame(height: 156)
-        .clipped()
-        .overlay(Rectangle().strokeBorder(Ident.line, lineWidth: 1))
+    private struct Face {
+        var label: String
+        var labelColor: Color
+        var right: String
+        var rightColor: Color
+        var big: String
+        var bigSize: CGFloat
+        var rise: Double
+        var sunWidth: CGFloat
+        var fill: Double
+        var bottomLeft: String
+        var bottomRight: String
     }
 
-    @ViewBuilder private var content: some View {
+    private var face: Face {
         if model.firing {
-            VStack(spacing: 4) {
-                StripedSun(rise: 0.45).frame(width: 150, height: 70)
-                Text("SENDING ONE SHORT PING").font(Fonts.vt(18)).foregroundColor(Ident.cream2)
-                Text("$ claude -p \"ping\"").font(Fonts.vt(15)).foregroundColor(Ident.dim)
-            }
-        } else if let w = model.window {
-            open(w)
-        } else {
-            idle
+            return Face(label: "Sending one ping", labelColor: Ident.red, right: "NOW", rightColor: Ident.cream2,
+                        big: Fmt.hm.string(from: model.now), bigSize: 96, rise: 0.6, sunWidth: 80, fill: 0,
+                        bottomLeft: "$ CLAUDE -P \"PING\"", bottomRight: "MAC AWAKE")
+        }
+        if let w = model.window {
+            let left = max(0, w.interval.end.timeIntervalSince(model.now))
+            return Face(label: "Time left", labelColor: Ident.red,
+                        right: "RESETS \(Fmt.hm.string(from: w.interval.end))", rightColor: Ident.cream2,
+                        big: DawnModel.hm(left), bigSize: 116, rise: 1, sunWidth: 96, fill: left / w.interval.duration,
+                        bottomLeft: "FROM \(Fmt.hm.string(from: w.interval.start)) · \(sourceName(w.source))",
+                        bottomRight: "ESTIMATE")
+        }
+        if let next = model.nextFire {
+            return Face(label: "Next ping", labelColor: Ident.dim, right: Fmt.day.string(from: next).uppercased(), rightColor: Ident.red,
+                        big: Fmt.hm.string(from: next), bigSize: 96, rise: 0, sunWidth: 80, fill: 0,
+                        bottomLeft: "NO WINDOW RUNNING", bottomRight: model.daysSummary.uppercased())
+        }
+        return Face(label: "Next ping", labelColor: Ident.dim, right: "OFF", rightColor: Ident.dim,
+                    big: "--:--", bigSize: 96, rise: 0, sunWidth: 80, fill: 0,
+                    bottomLeft: "NO WINDOW RUNNING", bottomRight: "MORNING PING OFF")
+    }
+
+    private func sourceName(_ s: WindowSource) -> String {
+        switch s {
+        case .ping: return "DAWN'S PING"
+        case .claudeCode: return "CLAUDE CODE"
+        case .manual: return "YOU"
         }
     }
 
-    private func open(_ w: UsageWindow) -> some View {
-        let total = w.interval.duration
-        let left = max(0, w.interval.end.timeIntervalSince(model.now))
-        return VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("WINDOW OPEN").foregroundColor(Ident.red)
-                Spacer()
-                Text("RESET \(Fmt.hm.string(from: w.interval.end))").foregroundColor(Ident.cream2)
-            }
-            .font(Fonts.vt(17))
-            HStack(alignment: .bottom) {
-                Text(DawnModel.hm(left)).font(Fonts.vt(72)).foregroundColor(Ident.cream).monospacedDigit()
-                Text("LEFT").font(Fonts.vt(17)).foregroundColor(Ident.dim).padding(.bottom, 14)
-                Spacer()
-                if w.source == .ping { StripedSun(rise: 0.8).frame(width: 64, height: 40).padding(.bottom, 14) }
-            }
-            .frame(height: 70)
-            ProgressStripes(fraction: 1 - left / total).frame(height: 9)
-            Text("STARTED \(Fmt.hm.string(from: w.interval.start)) · BY \(w.source.rawValue.uppercased()) · ESTIMATE")
-                .font(Fonts.vt(14)).foregroundColor(Ident.dim).padding(.top, 7)
-        }
-    }
-
-    private var idle: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("NO WINDOW RUNNING").font(Fonts.vt(17)).foregroundColor(Ident.dim)
-                Text(model.nextFire.map { Fmt.hm.string(from: $0) } ?? "--:--")
-                    .font(Fonts.vt(66)).foregroundColor(Ident.cream).frame(height: 66)
-                Text(model.nextFire.map { "NEXT PING · \(Fmt.day.string(from: $0).uppercased())" } ?? "MORNING PING IS OFF")
-                    .font(Fonts.vt(16)).foregroundColor(model.nextFire == nil ? Ident.dim : Ident.red)
-            }
-            Spacer()
-            StripedSun(rise: 0.35).frame(width: 110, height: 78)
-        }
-    }
-}
-
-struct ProgressStripes: View {
-    var fraction: Double
     var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Rectangle().fill(Ident.line)
-                Rectangle().fill(Ident.red).frame(width: geo.size.width * min(1, max(0, fraction)))
-                HStack(spacing: 4) {
-                    ForEach(0..<60, id: \.self) { _ in Rectangle().fill(Ident.black.opacity(0.55)).frame(width: 1.5) }
+        let f = face
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(f.label).dawnLabel(f.labelColor)
+                Spacer()
+                Text(f.right).font(Fonts.vt(20)).foregroundColor(f.rightColor)
+            }
+            HStack(alignment: .bottom) {
+                Text(f.big).font(Fonts.vt(f.bigSize)).foregroundColor(Ident.cream).monospacedDigit()
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                    .frame(height: f.bigSize * 0.78, alignment: .bottom)
+                Spacer(minLength: 8)
+                DawnSun(rise: f.rise).frame(width: f.sunWidth, height: f.sunWidth / 2)
+            }
+            .padding(.top, 10)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Ident.line)
+                    Rectangle().fill(Ident.cream).frame(width: geo.size.width * min(1, max(0, f.fill)))
                 }
             }
+            .frame(height: 4)
+            HStack {
+                Text(f.bottomLeft)
+                Spacer()
+                Text(f.bottomRight)
+            }
+            .font(Fonts.vt(18)).foregroundColor(Ident.dim).lineLimit(1)
+            .padding(.top, 10)
         }
-        .clipped()
+        .padding(EdgeInsets(top: 14, leading: 16, bottom: 12, trailing: 16))
+        .background(
+            ZStack {
+                Ident.black
+                EllipticalGradient(colors: [Ident.red.opacity(0.18), Ident.red.opacity(0)],
+                                   center: UnitPoint(x: 0.65, y: 0.45), startRadiusFraction: 0, endRadiusFraction: 0.7)
+                Scanlines(opacity: 0.45)
+            }
+        )
+        .overlay(Rectangle().strokeBorder(Ident.line, lineWidth: 1))
     }
 }
 
@@ -270,10 +254,9 @@ struct AskBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Rectangle().fill(Ident.cream).frame(width: 8, height: 8).padding(.top, 5)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("CLAUDE CODE IS WAITING\(ask.project.isEmpty ? "" : " · \(ask.project.uppercased())")")
-                    .font(Fonts.vt(16))
-                Text(ask.message).font(Fonts.grotesk(11.5, weight: 500)).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Claude Code is waiting\(ask.project.isEmpty ? "" : " · \(ask.project)")").dawnLabel(Ident.cream)
+                Text(ask.message).font(Fonts.grotesk(12.5, weight: 500)).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 4)
             Button("×") { dismiss() }.buttonStyle(.plain).font(Fonts.mono(13, bold: true))
@@ -281,6 +264,157 @@ struct AskBanner: View {
         .foregroundColor(Ident.cream)
         .padding(10)
         .background(Ident.red)
+    }
+}
+
+struct DoneBanner: View {
+    let done: Ask
+    let dismiss: () -> Void
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Circle().fill(Ident.red).frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Claude finished\(done.project.isEmpty ? "" : " · \(done.project)")").dawnLabel(Ident.cream)
+                Text("at \(Fmt.hm.string(from: done.date))").font(Fonts.vt(17)).foregroundColor(Ident.dim)
+            }
+            Spacer(minLength: 4)
+            Button("×") { dismiss() }.buttonStyle(.plain).font(Fonts.mono(13, bold: true)).foregroundColor(Ident.cream)
+        }
+        .padding(10)
+        .background(Ident.black2)
+        .overlay(Rectangle().strokeBorder(Ident.line, lineWidth: 1))
+    }
+}
+
+// MARK: - Settings
+
+struct SettingsView: View {
+    @ObservedObject var model: DawnModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            PanelHeader(trailing: "Settings")
+
+            section("Morning ping", first: true) {
+                row("Send the morning ping") { DawnSwitch(isOn: $model.settings.enabled) }
+                row("Time") {
+                    HStack(spacing: 6) {
+                        TimeStepper(value: $model.settings.hour, range: 0...23, step: 1)
+                        Text(":").font(Fonts.vt(26)).foregroundColor(Ident.dim)
+                        TimeStepper(value: $model.settings.minute, range: 0...55, step: 5)
+                    }
+                }
+                row("Days") { DayPicker(days: $model.settings.weekdays) }
+            }
+
+            section("Setup") {
+                SetupRow(title: "Claude Code",
+                         status: model.claudePath.map { ($0 as NSString).abbreviatingWithTildeInPath }
+                             ?? (model.claudeChecked ? "Not found. Install it and sign in once." : "Looking…"),
+                         ok: model.claudePath != nil) {
+                    if model.claudePath == nil {
+                        Button("Install") { NSWorkspace.shared.open(URL(string: "https://docs.claude.com/en/docs/claude-code/setup")!) }
+                            .buttonStyle(GhostButtonStyle(compact: true))
+                    } else {
+                        Button("Recheck") { model.refreshSystem() }.buttonStyle(GhostButtonStyle(compact: true))
+                    }
+                }
+                SetupRow(title: "Wake the Mac",
+                         status: model.wakeStatus ?? "No scheduled wake. The Mac must already be awake.",
+                         ok: model.wakeMatchesSchedule) {
+                    if model.wakeMatchesSchedule {
+                        Button("Remove") { model.removeWake() }.buttonStyle(GhostButtonStyle(compact: true))
+                    } else {
+                        Button(model.wakeStatus == nil ? "Set up" : "Replace") { model.setUpWake() }
+                            .buttonStyle(GhostButtonStyle(compact: true))
+                    }
+                }
+                SetupRow(title: "Claude Code hook",
+                         status: model.hookInstalled ? "A dot when Claude Code waits, a ping when it's done." : "Off",
+                         ok: model.hookInstalled) {
+                    Button(model.hookInstalled ? "Remove" : "Add") { model.toggleHook() }
+                        .buttonStyle(GhostButtonStyle(compact: true))
+                }
+            }
+
+            section("Sound") {
+                row("Space ping when Claude finishes") { DawnSwitch(isOn: $model.settings.doneSound) }
+                HStack {
+                    Text(model.hookInstalled ? "Plays when Claude Code ends a task." : "Needs the Claude Code hook above.")
+                        .font(Fonts.grotesk(11.5)).foregroundColor(Ident.dim)
+                    Spacer()
+                    Button("Play") { SpacePing.play() }.buttonStyle(GhostButtonStyle(compact: true))
+                }
+            }
+
+            section("General") {
+                row("Open at login") {
+                    DawnSwitch(isOn: Binding(get: { model.loginItem }, set: { model.setLoginItem($0) }))
+                }
+            }
+
+            if !model.history.isEmpty {
+                section("Recent pings") {
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(model.history.prefix(4)) { r in
+                            HStack(spacing: 8) {
+                                Text(Fmt.day.string(from: r.date).uppercased()).frame(width: 34, alignment: .leading)
+                                Text(Fmt.hm.string(from: r.date))
+                                Text(label(r)).foregroundColor(r.ok ? (r.trigger == .skipped ? Ident.dim : Ident.ok) : Ident.red)
+                                Spacer()
+                            }
+                            .font(Fonts.vt(17)).foregroundColor(Ident.cream2)
+                            .help(r.detail)
+                        }
+                    }
+                }
+            }
+
+            if let notice = model.notice {
+                Text(notice).font(Fonts.grotesk(12)).foregroundColor(Ident.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16).padding(.bottom, 12)
+                    .onTapGesture { model.notice = nil }
+            }
+
+            Ruled {
+                HStack {
+                    Button("← Back") { model.showSettings = false }.buttonStyle(DawnTextButtonStyle())
+                    Spacer()
+                    Text("v\(DawnInfo.version)").font(Fonts.vt(17)).foregroundColor(Ident.dim)
+                }
+                .padding(.horizontal, 16).padding(.vertical, 12)
+            }
+        }
+    }
+
+    private func label(_ r: FireRecord) -> String {
+        switch (r.trigger, r.ok) {
+        case (.skipped, _): return "SKIPPED · WINDOW WAS OPEN"
+        case (_, false): return "FAILED"
+        case (.manual, true): return "SENT BY HAND"
+        case (.scheduled, true): return "SENT"
+        }
+    }
+
+    @ViewBuilder
+    private func section<Content: View>(_ title: String, first: Bool = false, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if !first { Rectangle().fill(Ident.line).frame(height: 1) }
+            VStack(alignment: .leading, spacing: 12) {
+                Text(title).dawnLabel()
+                content()
+            }
+            .padding(EdgeInsets(top: first ? 4 : 14, leading: 16, bottom: 14, trailing: 16))
+        }
+    }
+
+    private func row<Trailing: View>(_ title: String, @ViewBuilder _ trailing: () -> Trailing) -> some View {
+        HStack {
+            Text(title).font(Fonts.grotesk(13, weight: 500)).foregroundColor(Ident.cream)
+            Spacer(minLength: 8)
+            trailing()
+        }
     }
 }
 
@@ -294,8 +428,9 @@ struct SetupRow<Trailing: View>: View {
         HStack(alignment: .center, spacing: 10) {
             Rectangle().fill(ok ? Ident.ok : Ident.red).frame(width: 6, height: 6)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(Fonts.grotesk(12, weight: 600))
-                Text(status).font(Fonts.grotesk(10.5)).foregroundColor(Ident.dim).lineLimit(2)
+                Text(title).font(Fonts.grotesk(13, weight: 600))
+                Text(status).font(Fonts.grotesk(11)).foregroundColor(Ident.dim).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 6)
             trailing()
@@ -338,7 +473,7 @@ struct DayPicker: View {
                     if on { days.remove(day) } else { days.insert(day) }
                 } label: {
                     Text(letter).font(Fonts.mono(10, bold: true))
-                        .frame(width: 17, height: 20)
+                        .frame(width: 18, height: 20)
                         .foregroundColor(on ? Ident.cream : Ident.dim)
                         .background(on ? Ident.red : Ident.black2)
                         .overlay(Rectangle().strokeBorder(on ? Color.clear : Ident.line, lineWidth: 1))
@@ -359,7 +494,7 @@ struct MenuBarLabel: View {
     @ObservedObject var model: DawnModel
     var body: some View {
         HStack(spacing: 3) {
-            Image(nsImage: MenuBarIcon.image(asking: model.ask != nil))
+            Image(nsImage: MenuBarIcon.image(asking: model.ask != nil, done: model.done != nil))
             if let t = model.menuBarText { Text(t).monospacedDigit() }
         }
     }
