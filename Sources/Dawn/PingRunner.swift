@@ -92,6 +92,56 @@ enum PingRunner {
         return (answer, limit)
     }
 
+    /// `claude -p /usage`: Claude Code answers this itself, without a message to the model, so it costs
+    /// nothing; `--no-session-persistence` keeps it out of the logs. Dawn reads the "Current session" line.
+    static func usage(claude: String) -> WindowLimit? {
+        let out = run(claude, ["-p", "/usage", "--no-session-persistence", "--output-format", "json"], cwd: workDir, timeout: 30)
+        guard out.status == 0, let data = out.output?.data(using: .utf8),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let text = json["result"] as? String else { return nil }
+        return parseUsage(text)
+    }
+
+    /// "Current session: 44% used · resets Oct 17 at 9:50pm (Europe/Berlin)"
+    static func parseUsage(_ text: String, now: Date = Date()) -> WindowLimit? {
+        guard let line = text.split(separator: "\n").first(where: { $0.hasPrefix("Current session") }) else { return nil }
+        let s = String(line), ns = s as NSString
+        let re = try! NSRegularExpression(pattern: #"(\d+(?:\.\d+)?)% used(?:\s*·\s*resets (.+?)(?: \(([^)]+)\))?)?\s*$"#)
+        guard let m = re.firstMatch(in: s, range: NSRange(location: 0, length: ns.length)) else { return nil }
+        func group(_ i: Int) -> String? { m.range(at: i).location == NSNotFound ? nil : ns.substring(with: m.range(at: i)) }
+        guard let used = group(1).flatMap(Double.init), let when = group(2),
+              let reset = resetDate(when, tz: group(3).flatMap(TimeZone.init(identifier:)) ?? .current, now: now) else { return nil }
+        return WindowLimit(resetsAt: reset, usedPercent: used, updated: now)
+    }
+
+    /// "Oct 17 at 9:50pm", "9:50pm" or "10pm", in the time zone `/usage` names.
+    static func resetDate(_ text: String, tz: TimeZone, now: Date) -> Date? {
+        let t = text.replacingOccurrences(of: "am", with: "AM").replacingOccurrences(of: "pm", with: "PM")
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = tz
+        for format in ["MMM d 'at' h:mma", "MMM d 'at' ha", "MMM d, h:mma", "MMM d, ha"] {
+            f.dateFormat = format
+            guard let d = f.date(from: t) else { continue }
+            var c = cal.dateComponents([.month, .day, .hour, .minute], from: d)
+            c.year = cal.component(.year, from: now)
+            guard var date = cal.date(from: c) else { continue }
+            if date < now.addingTimeInterval(-86400) { c.year! += 1; date = cal.date(from: c) ?? date } // over New Year
+            return date
+        }
+        for format in ["h:mma", "ha"] {
+            f.dateFormat = format
+            guard let d = f.date(from: t) else { continue }
+            let c = cal.dateComponents([.hour, .minute], from: d)
+            guard var date = cal.date(bySettingHour: c.hour ?? 0, minute: c.minute ?? 0, second: 0, of: now) else { continue }
+            if date < now { date = cal.date(byAdding: .day, value: 1, to: date) ?? date }
+            return date
+        }
+        return nil
+    }
+
     struct Output {
         var status: Int32
         var output: String?

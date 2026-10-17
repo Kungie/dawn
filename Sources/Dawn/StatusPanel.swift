@@ -70,7 +70,7 @@ final class StatusPanelController: NSObject {
         let text = model.menuBarText.map { " \($0)" } ?? ""
         defer { if panel.isVisible { place() } } // the item can change width, keep the panel centred under it
         button.attributedTitle = MenuBarIcon.title(text)
-        button.setAccessibilityLabel(model.menuBarText.map { "Dawn, \($0) left in the window" } ?? "Dawn")
+        button.setAccessibilityLabel(model.menuBarAccessibilityLabel)
     }
 
     /// `DAWN_PANEL_SELFTEST=1`: open the panel, change its content, print the frames, quit.

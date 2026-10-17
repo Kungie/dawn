@@ -32,6 +32,18 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Dawn.icns"
 # Ad-hoc signature, so macOS runs it locally. Not notarized.
 xattr -cr "$APP"
 codesign --force --sign - "$APP" >/dev/null
+# Installer: a disk image with the drag-to-Applications window. Needs dmgbuild (pip install dmgbuild);
+# without it the zip below is still built.
+DMGBUILD="${DMGBUILD:-$(command -v dmgbuild || true)}"
+if [ -n "$DMGBUILD" ]; then
+  "$BIN" dmg-background build
+  rm -f build/Dawn.dmg
+  "$DMGBUILD" -s scripts/dmg-settings.py -D app="$APP" -D bg=build/dmg-background.png Dawn build/Dawn.dmg >/dev/null
+  echo "Built build/Dawn.dmg"
+else
+  echo "dmgbuild not found, skipping build/Dawn.dmg (pip install dmgbuild)"
+fi
+
 # Zip for a GitHub release.
 rm -f build/Dawn.zip
 ditto -c -k --keepParent "$APP" build/Dawn.zip

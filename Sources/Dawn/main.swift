@@ -5,12 +5,14 @@ import AppKit
 //   Dawn hook [stop]     called by Claude Code's Notification / Stop hooks, forwards them to the app and exits
 //   Dawn statusline      Claude Code's status line: passes the real reset time on, then runs your own status line
 //   Dawn sync            the same as SYNC in the panel: one short ping to read Claude's real reset time
+//   Dawn usage           reads the current window from `claude -p /usage` (free, no message to the model)
 //   Dawn hook-install    the same as Add next to "Claude Code hook" in Settings (hook-remove: Remove)
 //   Dawn ping-sound      plays the "Claude finished" sound
 //   Dawn schedule [demo] prints the morning ping and its 5 h 1 min follow-ups for today
 //   Dawn snapshot <dir>  renders the panel with demo data (README screenshots)
 //   Dawn status          prints what Dawn sees: claude, the scheduled wake, the current window estimate
 //   Dawn icon <file>     renders the 1024 px app icon (used by scripts/build-app.sh)
+//   Dawn dmg-background <dir>  renders the installer window background (used by scripts/build-app.sh)
 let args = CommandLine.arguments
 switch args.dropFirst().first {
 case "hook":
@@ -31,6 +33,13 @@ case "sync":
     DistributedNotificationCenter.default().postNotificationName(StatusLineCommand.notification, object: nil,
         userInfo: ["resetsAt": l.resetsAt.timeIntervalSince1970, "used": l.usedPercent ?? -1], deliverImmediately: true)
     print("Claude: window resets \(f.string(from: l.resetsAt)), \(l.usedPercent.map { "\(Int($0.rounded()))% used" } ?? "usage unknown")")
+    exit(0)
+case "usage":
+    // What the app does every two minutes: Claude Code's own /usage, no message to the model.
+    guard let claude = PingRunner.locateClaude() else { print("claude not found"); exit(1) }
+    guard let l = PingRunner.usage(claude: claude) else { print("no current session in /usage"); exit(1) }
+    let f = DateFormatter(); f.dateFormat = "EEE HH:mm"
+    print("current session: \(l.usedPercent.map { "\(Int($0.rounded()))% used" } ?? "usage unknown"), resets \(f.string(from: l.resetsAt))")
     exit(0)
 case "statusline":
     StatusLineCommand.run()
@@ -94,6 +103,16 @@ case "snapshot":
     _ = NSApplication.shared
     Fonts.register()
     MainActor.assumeIsolated { Snapshot.run(to: args.count > 2 ? args[2] : "docs") }
+    exit(0)
+case "dmg-background":
+    // Writes <dir>/dmg-background.png and @2x, for scripts/build-app.sh.
+    _ = NSApplication.shared
+    Fonts.register()
+    let dir = args.count > 2 ? args[2] : "."
+    MainActor.assumeIsolated {
+        Snapshot.dmgBackground(to: dir + "/dmg-background.png", scale: 1)
+        Snapshot.dmgBackground(to: dir + "/dmg-background@2x.png", scale: 2)
+    }
     exit(0)
 case "icon":
     _ = NSApplication.shared

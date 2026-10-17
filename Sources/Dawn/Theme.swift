@@ -292,6 +292,35 @@ struct DawnSwitch: View {
     }
 }
 
+/// A row of square options, the chosen one filled red. Same build as `DawnSwitch`.
+struct DawnSegmented<Option: Hashable & CaseIterable>: View where Option.AllCases: RandomAccessCollection, Option: Labelled {
+    @Binding var selection: Option
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(Option.allCases), id: \.self) { option in
+                let on = option == selection
+                Button { selection = option } label: {
+                    Text(option.label.uppercased())
+                        .font(Fonts.mono(10.5))
+                        .tracking(0.6)
+                        .foregroundColor(on ? Ident.cream : Ident.dim)
+                        .frame(minWidth: 46, minHeight: 20)
+                        .padding(.horizontal, 4)
+                        .background(Rectangle().fill(on ? Ident.red : Ident.line))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .pointerCursor()
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: selection)
+    }
+}
+
+protocol Labelled { var label: String { get } }
+extension MenuBarShows: Labelled {}
+
 /// The big red action with a hard red-deep shadow under it.
 struct DawnPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {

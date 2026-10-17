@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.5.0"
+    static let version = "0.5.1"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -79,6 +79,43 @@ enum Snapshot {
             return true
         }
         guard let tiff = image.tiffRepresentation,
+              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+
+    /// The installer window's background (640 × 420 pt): Dawn on the left, Applications on the right,
+    /// a stepped red pixel arrow between them. Finder draws the icon names in white (dark mode) or black
+    /// (light mode), so each icon sits on a mid-tone pad where both stay readable.
+    @MainActor
+    static func dmgBackground(to path: String, scale: CGFloat) {
+        let art = ZStack {
+            Ident.black
+            EllipticalGradient(colors: [Ident.red.opacity(0.22), Ident.red.opacity(0)],
+                               center: UnitPoint(x: 0.5, y: 0.58), startRadiusFraction: 0, endRadiusFraction: 0.65)
+            ForEach([CGPoint(x: 170, y: 214), CGPoint(x: 470, y: 214)], id: \.x) { c in
+                Rectangle()
+                    .fill(Color(hex: 0x7D6C64))
+                    .overlay(Rectangle().strokeBorder(Color(hex: 0x9A8A82), lineWidth: 1))
+                    .frame(width: 168, height: 176)
+                    .position(c)
+            }
+            DmgArrow().frame(width: 104, height: 28).position(x: 320, y: 205)
+            HStack(spacing: 10) {
+                DawnChip(size: 22)
+                Wordmark(size: 17)
+            }
+            .position(x: 320, y: 56)
+            VStack(spacing: 6) {
+                Text("Drag Dawn into Applications").font(Fonts.grotesk(16, weight: 500)).foregroundColor(Ident.cream)
+                Text("THEN OPEN IT FROM THERE · MACOS 13+").font(Fonts.vt(17)).foregroundColor(Ident.dim)
+            }
+            .position(x: 320, y: 352)
+            Scanlines(opacity: 0.35)
+        }
+        .frame(width: 640, height: 420)
+        let renderer = ImageRenderer(content: art)
+        renderer.scale = scale
+        guard let tiff = renderer.nsImage?.tiffRepresentation,
               let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return }
         try? png.write(to: URL(fileURLWithPath: path))
     }
@@ -166,5 +203,38 @@ struct MenuBarScene: View {
         .font(.system(size: 13, weight: .medium))
         .frame(width: Self.width, height: Self.barHeight)
         .background(Color(red: 0.12, green: 0.11, blue: 0.11))
+    }
+}
+
+
+/// A right-pointing arrow of 4 pt pixels: a shaft and a stepped head, like the panel's notch.
+struct DmgArrow: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let p: CGFloat = 4
+            let mid = (size.height / p / 2).rounded(.down)
+            let headStart = size.width / p - 6
+            var x: CGFloat = 0
+            while x < size.width / p {
+                let col = x
+                if col < headStart {
+                    // shaft: two pixels thick, with a dithered tail at the start
+                    if col >= 3 || Int(col) % 2 == 0 {
+                        for r in [mid - 1, mid] {
+                            ctx.fill(Path(CGRect(x: col * p, y: r * p, width: p, height: p)), with: .color(Ident.red))
+                        }
+                    }
+                } else {
+                    // head: half-height shrinks one pixel per column
+                    let half = 6 - (col - headStart)
+                    var r = mid - half
+                    while r <= mid + half - 1 {
+                        ctx.fill(Path(CGRect(x: col * p, y: r * p, width: p, height: p)), with: .color(Ident.red))
+                        r += 1
+                    }
+                }
+                x += 1
+            }
+        }
     }
 }

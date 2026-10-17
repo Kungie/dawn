@@ -11,6 +11,19 @@ struct FireRecord: Codable, Identifiable, Equatable {
     let detail: String
 }
 
+/// What sits next to the sun in the menu bar while a window runs.
+enum MenuBarShows: String, Codable, CaseIterable {
+    case time, usage, none
+
+    var label: String {
+        switch self {
+        case .time: return "Time"
+        case .usage: return "Usage"
+        case .none: return "None"
+        }
+    }
+}
+
 struct Settings: Codable, Equatable {
     var enabled = false
     var hour = 6
@@ -18,15 +31,16 @@ struct Settings: Codable, Equatable {
     var weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7] // Calendar weekday numbers, 1 = Sunday
     var model = "haiku"
     var doneSound = true
-    var showMenuBarTime = true
+    /// Just the sun by default; the time left or the share used can sit next to it.
+    var menuBar: MenuBarShows = .none
     /// After the morning ping, keep a window going: ping again 5 h 1 min after the last ping.
     var followUps = true
 
     init(enabled: Bool = false, hour: Int = 6, minute: Int = 30, weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7],
-         model: String = "haiku", doneSound: Bool = true, showMenuBarTime: Bool = true, followUps: Bool = true) {
+         model: String = "haiku", doneSound: Bool = true, menuBar: MenuBarShows = .none, followUps: Bool = true) {
         self.enabled = enabled; self.hour = hour; self.minute = minute
         self.weekdays = weekdays; self.model = model; self.doneSound = doneSound
-        self.showMenuBarTime = showMenuBarTime; self.followUps = followUps
+        self.menuBar = menuBar; self.followUps = followUps
     }
 
     // Settings saved by an older version simply lack the newer keys; keep everything else.
@@ -39,7 +53,7 @@ struct Settings: Codable, Equatable {
         weekdays = try c.decodeIfPresent(Set<Int>.self, forKey: .weekdays) ?? d.weekdays
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
         doneSound = try c.decodeIfPresent(Bool.self, forKey: .doneSound) ?? d.doneSound
-        showMenuBarTime = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarTime) ?? d.showMenuBarTime
+        menuBar = (try? c.decodeIfPresent(MenuBarShows.self, forKey: .menuBar)) ?? d.menuBar
         followUps = try c.decodeIfPresent(Bool.self, forKey: .followUps) ?? d.followUps
     }
 }
@@ -119,6 +133,9 @@ final class DawnModel: ObservableObject {
         timers.append(Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.rescan() }
         })
+        timers.append(Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshUsage() }
+        })
         let ws = NSWorkspace.shared.notificationCenter
         observers.append(ws.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             // Give Wi-Fi a moment after a scheduled wake, then check the schedule.
@@ -168,8 +185,10 @@ final class DawnModel: ObservableObject {
             let wake = WakeSchedule.current()
             let hook = ClaudeHook.isInstalled()
             Task { @MainActor in
+                let first = self.claudePath == nil && claude != nil
                 self.claudePath = claude
                 self.claudeChecked = true
+                if first { self.refreshUsage() }
                 self.wakeStatus = wake
                 self.hookInstalled = hook
                 self.loginItem = LoginItem.isEnabled
@@ -285,8 +304,41 @@ final class DawnModel: ObservableObject {
 
     func fireNow() { fire(.manual) }
 
-    /// The window is only estimated: send one short ping inside it to get Claude's own reset time.
-    func syncWithClaude() { fire(.sync) }
+    /// The window is only estimated: ask Claude Code's `/usage` (free), and only if that says nothing,
+    /// send one short ping inside the window to get Claude's own reset time.
+    func syncWithClaude() { refreshUsage(pingIfUnknown: true) }
+
+    private var usageRunning = false
+
+    /// Reads the current window from `claude -p /usage`, which Claude Code answers itself: no message
+    /// to the model, no usage, no session left behind. Runs every two minutes.
+    func refreshUsage(pingIfUnknown: Bool = false) {
+        guard !demo, !usageRunning, !firing else { return }
+        guard let claude = claudePath else {
+            if pingIfUnknown { fire(.sync) }
+            return
+        }
+        usageRunning = true
+        DispatchQueue.global(qos: .utility).async {
+            let l = PingRunner.usage(claude: claude)
+            Task { @MainActor in
+                self.usageRunning = false
+                if let l { self.take(l) } else if pingIfUnknown { self.fire(.sync) }
+            }
+        }
+    }
+
+    /// `/usage` gives the reset to the minute; keep the exact second from the status line or a ping when it agrees.
+    private func take(_ fresh: WindowLimit) {
+        var l = fresh
+        if let old = limit, abs(old.resetsAt.timeIntervalSince(fresh.resetsAt)) < 90 {
+            l = WindowLimit(resetsAt: old.resetsAt, usedPercent: fresh.usedPercent, updated: fresh.updated)
+        }
+        l.save()
+        limit = l
+        updateWindow()
+        refreshNextFire()
+    }
 
     private func fire(_ trigger: FireRecord.Trigger) {
         guard !firing else { return }
@@ -401,10 +453,21 @@ final class DawnModel: ObservableObject {
         return [2, 3, 4, 5, 6, 7, 1].filter(d.contains).compactMap { names[$0] }.joined(separator: ", ")
     }
 
-    /// The short text next to the menu bar icon: time left in the window.
+    /// The short text next to the menu bar icon: time left in the window, or how much of it is used.
+    /// Usage only comes from Claude; while the window is an estimate it shows a dash.
     var menuBarText: String? {
-        guard settings.showMenuBarTime, let w = window else { return nil }
-        return Self.hm(w.interval.end.timeIntervalSince(now))
+        guard let w = window else { return nil }
+        switch settings.menuBar {
+        case .time: return Self.hm(w.interval.end.timeIntervalSince(now))
+        case .usage: return w.usedPercent.map { "\(Int($0.rounded()))%" } ?? "–%"
+        case .none: return nil
+        }
+    }
+
+    /// What VoiceOver reads for the menu bar item.
+    var menuBarAccessibilityLabel: String {
+        guard let text = menuBarText else { return "Dawn" }
+        return settings.menuBar == .usage ? "Dawn, \(text) of the window used" : "Dawn, \(text) left in the window"
     }
 
     static func hm(_ t: TimeInterval) -> String {
