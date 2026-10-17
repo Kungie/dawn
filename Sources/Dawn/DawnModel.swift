@@ -18,11 +18,13 @@ struct Settings: Codable, Equatable {
     var weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7] // Calendar weekday numbers, 1 = Sunday
     var model = "haiku"
     var doneSound = true
+    var showMenuBarTime = true
 
     init(enabled: Bool = false, hour: Int = 6, minute: Int = 30, weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7],
-         model: String = "haiku", doneSound: Bool = true) {
+         model: String = "haiku", doneSound: Bool = true, showMenuBarTime: Bool = true) {
         self.enabled = enabled; self.hour = hour; self.minute = minute
         self.weekdays = weekdays; self.model = model; self.doneSound = doneSound
+        self.showMenuBarTime = showMenuBarTime
     }
 
     // Settings saved by an older version simply lack the newer keys; keep everything else.
@@ -35,6 +37,7 @@ struct Settings: Codable, Equatable {
         weekdays = try c.decodeIfPresent(Set<Int>.self, forKey: .weekdays) ?? d.weekdays
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
         doneSound = try c.decodeIfPresent(Bool.self, forKey: .doneSound) ?? d.doneSound
+        showMenuBarTime = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarTime) ?? d.showMenuBarTime
     }
 }
 
@@ -348,7 +351,7 @@ final class DawnModel: ObservableObject {
 
     /// The short text next to the menu bar icon: time left in the window.
     var menuBarText: String? {
-        guard let w = window else { return nil }
+        guard settings.showMenuBarTime, let w = window else { return nil }
         return Self.hm(w.interval.end.timeIntervalSince(now))
     }
 

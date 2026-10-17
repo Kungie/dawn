@@ -31,7 +31,7 @@ If you add the Claude Code hook (one click in Settings), the sun gets a ringed d
 
 <p align="center"><img src="docs/panel-asking.png" width="340" alt="The panel with a red banner: Claude Code is waiting, Claude needs your permission to use Bash."> &nbsp; <img src="docs/panel-settings.png" width="340" alt="Dawn's settings: morning ping time and days, setup checks for Claude Code, the scheduled wake and the hook, the space ping switch, open at login, and the last four pings."></p>
 
-Everything you set once lives behind **Settings** at the bottom of the panel: the morning ping time and days, the setup checks, the sound and open at login. The panel itself stays a clock.
+Everything you set once lives behind **Settings** at the bottom of the panel: the morning ping time and days, the setup checks, the sound, whether the time shows in the menu bar, and open at login. The panel itself stays a clock.
 
 ## Install
 

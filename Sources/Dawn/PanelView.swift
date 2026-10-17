@@ -362,6 +362,7 @@ struct SettingsView: View {
             }
 
             section("General") {
+                row("Show time in the menu bar") { DawnSwitch(isOn: $model.settings.showMenuBarTime) }
                 row("Open at login") {
                     DawnSwitch(isOn: Binding(get: { model.loginItem }, set: { model.setLoginItem($0) }))
                 }
