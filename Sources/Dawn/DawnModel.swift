@@ -3,7 +3,7 @@ import Combine
 import Foundation
 
 struct FireRecord: Codable, Identifiable, Equatable {
-    enum Trigger: String, Codable { case scheduled, manual, skipped }
+    enum Trigger: String, Codable { case scheduled, followUp, manual, skipped }
     var id = UUID()
     let date: Date
     let trigger: Trigger
@@ -19,12 +19,14 @@ struct Settings: Codable, Equatable {
     var model = "haiku"
     var doneSound = true
     var showMenuBarTime = true
+    /// After the morning ping, keep a window going: ping again 5 h 1 min after the last ping.
+    var followUps = true
 
     init(enabled: Bool = false, hour: Int = 6, minute: Int = 30, weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7],
-         model: String = "haiku", doneSound: Bool = true, showMenuBarTime: Bool = true) {
+         model: String = "haiku", doneSound: Bool = true, showMenuBarTime: Bool = true, followUps: Bool = true) {
         self.enabled = enabled; self.hour = hour; self.minute = minute
         self.weekdays = weekdays; self.model = model; self.doneSound = doneSound
-        self.showMenuBarTime = showMenuBarTime
+        self.showMenuBarTime = showMenuBarTime; self.followUps = followUps
     }
 
     // Settings saved by an older version simply lack the newer keys; keep everything else.
@@ -38,6 +40,7 @@ struct Settings: Codable, Equatable {
         model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
         doneSound = try c.decodeIfPresent(Bool.self, forKey: .doneSound) ?? d.doneSound
         showMenuBarTime = try c.decodeIfPresent(Bool.self, forKey: .showMenuBarTime) ?? d.showMenuBarTime
+        followUps = try c.decodeIfPresent(Bool.self, forKey: .followUps) ?? d.followUps
     }
 }
 
@@ -83,6 +86,8 @@ final class DawnModel: ObservableObject {
     private let defaults = UserDefaults.standard
     private var manualStarts: [Date] { didSet { defaults.set(manualStarts, forKey: "manualStarts") } }
     private var lastScheduledDay: Date? { didSet { defaults.set(lastScheduledDay, forKey: "lastScheduledDay") } }
+    /// Last time a follow-up was tried; a failed one (no internet, say) is retried after 10 minutes.
+    private var lastFollowUpAttempt: Date?
     private var ownActivity: [Date] = []
     private var pingActivity: [Date] = []
     private var timers: [Timer] = []
@@ -139,6 +144,8 @@ final class DawnModel: ObservableObject {
         if let d = done, now.timeIntervalSince(d.date) > 30 * 60 { done = nil }
         updateWindow()
         checkSchedule()
+        checkFollowUp()
+        refreshNextFire()
     }
 
     func refreshSystem() {
@@ -213,15 +220,29 @@ final class DawnModel: ObservableObject {
     func refreshNextFire() {
         guard settings.enabled, !settings.weekdays.isEmpty else { nextFire = nil; return }
         let cal = Calendar.current
+        var morning: Date?
         for offset in 0..<8 {
             guard let day = cal.date(byAdding: .day, value: offset, to: Date()),
                   settings.weekdays.contains(cal.component(.weekday, from: day)),
                   let date = fireDate(on: day) else { continue }
             if offset == 0 && (date < Date() || lastScheduledDay.map { cal.isDateInToday($0) } == true) { continue }
-            nextFire = date
-            return
+            morning = date
+            break
         }
-        nextFire = nil
+        let followUp = Schedule.nextFollowUp(at: Date(), settings, pings: pingDates).map { max($0, Date()) }
+        nextFire = [morning, followUp].compactMap { $0 }.min()
+    }
+
+    /// Pings that actually went out (morning, follow-up or by hand).
+    private var pingDates: [Date] { history.filter { $0.ok && $0.trigger != .skipped }.map(\.date) }
+
+    private func checkFollowUp() {
+        guard settings.enabled, settings.followUps, !firing, !demo else { return }
+        let now = Date()
+        guard let due = Schedule.nextFollowUp(at: now, settings, pings: pingDates), now >= due else { return }
+        if let last = lastFollowUpAttempt, now.timeIntervalSince(last) < 10 * 60 { return }
+        lastFollowUpAttempt = now
+        fire(.followUp)
     }
 
     private func checkSchedule() {

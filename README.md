@@ -21,6 +21,8 @@ Claude's usage window is five hours long and starts with your first message. Cla
 
 Dawn moves the clock. At 06:30, or whenever you set it, it wakes your sleeping Mac for a minute and sends one tiny message through the official Claude Code command line tool, signed in with your own account. Your window starts while you're still asleep, so by the time you sit down at nine the next fresh one is two and a half hours away instead of five.
 
+With **Auto refresh** on, Dawn keeps going after that: 5 h 1 min after each ping it sends the next one, so a fresh window starts a minute after the last one ends (06:30, 11:31, 16:32, 21:33). It stops before a ping whose window would still be running at the next morning ping, and it needs the Mac to be awake at those times.
+
 It doesn't give you more Claude. Your weekly limit stays exactly where Anthropic put it, and the ping is one short message to the smallest model. Dawn only moves the timing.
 
 ## What's in the menu bar
@@ -81,7 +83,7 @@ Dawn is one Swift package with no dependencies. `Sources/Dawn` has the menu bar 
 /Applications/Dawn.app/Contents/MacOS/Dawn status
 ```
 
-`status` prints what Dawn sees: where `claude` is, the scheduled wake, the hook, and the current window estimate. `hook` and `hook stop` are what Claude Code calls. `ping-sound` plays the finish sound, and `session` prints which app and terminal the hook would report from where you run it. `snapshot <folder>` renders the panel with demo data (that's where the pictures above come from), and `icon <file>` draws the app icon.
+`status` prints what Dawn sees: where `claude` is, the scheduled wake, the hook, and the current window estimate. `hook` and `hook stop` are what Claude Code calls. `schedule` prints today's morning ping and its Auto refresh follow-ups, `ping-sound` plays the finish sound, and `session` prints which app and terminal the hook would report from where you run it. `snapshot <folder>` renders the panel with demo data (that's where the pictures above come from), and `icon <file>` draws the app icon.
 
 `make app` builds `build/Dawn.app`, `make run` opens it, `make snapshots` refreshes the pictures in `docs/`.
 

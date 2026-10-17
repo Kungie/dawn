@@ -60,11 +60,9 @@ struct MainView: View {
             }
             ScreenCard(model: model).padding(.horizontal, 12)
 
-            if model.window != nil {
-                morningRow
-            } else {
-                actions
-            }
+            if model.window == nil { actions }
+            morningRow
+            autoRefreshRow
 
             if let notice = model.notice {
                 Text(notice).font(Fonts.grotesk(12)).foregroundColor(Ident.red)
@@ -92,7 +90,28 @@ struct MainView: View {
             Spacer()
             DawnSwitch(isOn: $model.settings.enabled)
         }
-        .padding(EdgeInsets(top: 18, leading: 16, bottom: 16, trailing: 16))
+        .padding(EdgeInsets(top: 18, leading: 16, bottom: 12, trailing: 16))
+    }
+
+    /// Under the morning ping: keep a window going all day, a new one a minute after the last one ends.
+    private var autoRefreshRow: some View {
+        let on = model.settings.enabled && model.settings.followUps
+        return HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Auto refresh").dawnLabel()
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text("+5:01").font(Fonts.vt(34)).foregroundColor(on ? Ident.cream : Ident.dim)
+                    Text(model.settings.enabled ? "after each window" : "needs the morning ping")
+                        .font(Fonts.grotesk(13)).foregroundColor(Ident.cream2)
+                }
+            }
+            Spacer()
+            DawnSwitch(isOn: $model.settings.followUps)
+                .opacity(model.settings.enabled ? 1 : 0.45)
+                .disabled(!model.settings.enabled)
+        }
+        .padding(EdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16))
+        .help("After the morning ping, Dawn pings again 5 h 1 min after the last ping, until the next morning.")
     }
 
     private var actions: some View {
@@ -319,6 +338,9 @@ struct SettingsView: View {
                     }
                 }
                 row("Days") { DayPicker(days: $model.settings.weekdays) }
+                row("Auto refresh every 5 h 1 min") { DawnSwitch(isOn: $model.settings.followUps) }
+                Text("After the morning ping, a new window starts a minute after the last one ends, until the next morning.")
+                    .font(Fonts.grotesk(11.5)).foregroundColor(Ident.dim).fixedSize(horizontal: false, vertical: true)
             }
 
             section("Setup") {
@@ -408,6 +430,7 @@ struct SettingsView: View {
         case (.skipped, _): return "SKIPPED · WINDOW WAS OPEN"
         case (_, false): return "FAILED"
         case (.manual, true): return "SENT BY HAND"
+        case (.followUp, true): return "SENT · 5 H LATER"
         case (.scheduled, true): return "SENT"
         }
     }
