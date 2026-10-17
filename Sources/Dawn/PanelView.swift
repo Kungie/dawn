@@ -140,16 +140,20 @@ struct MainView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Button { model.showSettings = true } label: {
-                HStack(spacing: 6) {
-                    Text("Settings")
-                    if model.setupNeedsAttention { Rectangle().fill(Ident.red).frame(width: 6, height: 6) }
+        ZStack {
+            // The version sits exactly in the middle, whatever the widths of Settings and Quit.
+            Text("v\(DawnInfo.version)").font(Fonts.vt(17)).foregroundColor(Ident.dim)
+            HStack {
+                Button { model.showSettings = true } label: {
+                    HStack(spacing: 6) {
+                        Text("Settings")
+                        if model.setupNeedsAttention { Rectangle().fill(Ident.red).frame(width: 6, height: 6) }
+                    }
                 }
+                .buttonStyle(DawnTextButtonStyle())
+                Spacer()
+                Button("Quit") { NSApp.terminate(nil) }.buttonStyle(DawnTextButtonStyle(color: Ident.dim, hoverColor: Ident.red))
             }
-            .buttonStyle(DawnTextButtonStyle())
-            Spacer()
-            Button("Quit") { NSApp.terminate(nil) }.buttonStyle(DawnTextButtonStyle(color: Ident.dim, hoverColor: Ident.red))
         }
     }
 }
