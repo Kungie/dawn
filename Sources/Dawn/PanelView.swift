@@ -95,16 +95,10 @@ struct MainView: View {
 
     /// Under the morning ping: keep a window going all day, a new one a minute after the last one ends.
     private var autoRefreshRow: some View {
-        let on = model.settings.enabled && model.settings.followUps
-        return HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Auto refresh").dawnLabel()
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("+5:01").font(Fonts.vt(34)).foregroundColor(on ? Ident.cream : Ident.dim)
-                    Text(model.settings.enabled ? "after each window" : "needs the morning ping")
-                        .font(Fonts.grotesk(13)).foregroundColor(Ident.cream2)
-                }
-            }
+        HStack(alignment: .center, spacing: 12) {
+            Text("Automatically refresh window")
+                .font(Fonts.grotesk(13, weight: 500))
+                .foregroundColor(model.settings.enabled ? Ident.cream : Ident.dim)
             Spacer()
             DawnSwitch(isOn: $model.settings.followUps)
                 .opacity(model.settings.enabled ? 1 : 0.45)
