@@ -203,14 +203,16 @@ enum MenuBarIcon {
     static func image(asking: Bool, done: Bool = false) -> NSImage {
         let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
             NSColor.black.setFill()
-            NSRect(x: 1, y: 3, width: 16, height: 1.6).fill()
+            // Same proportions as the website's menu bar: a horizon bar, a small gap, then a half sun.
+            NSRect(x: 2.5, y: 3.6, width: 13, height: 1.3).fill()
             let sun = NSBezierPath()
-            sun.appendArc(withCenter: NSPoint(x: 9, y: 5.4), radius: 7, startAngle: 0, endAngle: 180)
+            sun.appendArc(withCenter: NSPoint(x: 9, y: 5.6), radius: 5.8, startAngle: 0, endAngle: 180)
             sun.close()
             sun.fill()
+            // Two thin cuts through the sun; with the gap above the horizon it reads as a stack of bars.
             NSGraphicsContext.current?.compositingOperation = .clear
-            NSRect(x: 0, y: 6.6, width: 18, height: 1.0).fill()
-            NSRect(x: 0, y: 9.2, width: 18, height: 0.8).fill()
+            NSRect(x: 0, y: 7.3, width: 18, height: 0.7).fill()
+            NSRect(x: 0, y: 9.3, width: 18, height: 0.7).fill()
             if asking || done {
                 // Knock out a gap around the mark so it reads against the sun.
                 NSBezierPath(ovalIn: NSRect(x: 11.2, y: 9.2, width: 7.6, height: 7.6)).fill()
@@ -230,12 +232,19 @@ enum MenuBarIcon {
         return img
     }
 
-    /// The countdown next to the sun, in VT323 like Dawn's screen. VT323 runs small, so it is set larger than
-    /// the menu bar's system font and nudged down onto the same baseline. Falls back to the system font.
+    /// The countdown next to the sun: Space Grotesk Medium with tabular figures, like the website's menu bar.
+    /// Falls back to the system font.
     static func title(_ text: String) -> NSAttributedString {
         let system = NSFont.menuBarFont(ofSize: 0).pointSize
-        if let vt = NSFont(name: "VT323-Regular", size: (system * 1.38).rounded()) {
-            return NSAttributedString(string: text, attributes: [.font: vt, .kern: 0.6, .baselineOffset: -1])
+        let size = system + 1
+        let base = CTFontDescriptorCreateWithNameAndSize("SpaceGrotesk-Light" as CFString, size)
+        let attrs: [CFString: Any] = [
+            kCTFontVariationAttribute: [NSNumber(value: 0x7767_6874): NSNumber(value: 500)], // wght 500
+            kCTFontFeatureSettingsAttribute: [[kCTFontOpenTypeFeatureTag: "tnum", kCTFontOpenTypeFeatureValue: 1]],
+        ]
+        let ct = CTFontCreateWithFontDescriptor(CTFontDescriptorCreateCopyWithAttributes(base, attrs as CFDictionary), size, nil)
+        if (CTFontCopyFamilyName(ct) as String).hasPrefix("Space Grotesk") {
+            return NSAttributedString(string: text, attributes: [.font: ct as NSFont])
         }
         return NSAttributedString(string: text, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: system, weight: .regular)])
     }

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.2.3"
+    static let version = "0.2.4"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
