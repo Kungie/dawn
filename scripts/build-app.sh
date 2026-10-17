@@ -3,8 +3,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift build -c release
-BIN="$(swift build -c release --show-bin-path)/Dawn"
+# Universal binary: Apple silicon and Intel, macOS 13 and later.
+mkdir -p build/bin
+for arch in arm64 x86_64; do
+  swift build -c release --triple "$arch-apple-macosx13.0"
+  cp "$(swift build -c release --triple "$arch-apple-macosx13.0" --show-bin-path)/Dawn" "build/bin/Dawn-$arch"
+done
+lipo -create build/bin/Dawn-arm64 build/bin/Dawn-x86_64 -output build/bin/Dawn
+BIN=build/bin/Dawn
 
 APP=build/Dawn.app
 rm -rf "$APP"
@@ -26,4 +32,7 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Dawn.icns"
 # Ad-hoc signature, so macOS runs it locally. Not notarized.
 xattr -cr "$APP"
 codesign --force --sign - "$APP" >/dev/null
-echo "Built $APP"
+# Zip for a GitHub release.
+rm -f build/Dawn.zip
+ditto -c -k --keepParent "$APP" build/Dawn.zip
+echo "Built $APP and build/Dawn.zip"

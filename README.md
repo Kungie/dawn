@@ -24,7 +24,11 @@ If you add the Claude Code hook (one click in Setup), the sun gets a dot wheneve
 
 ## Install
 
-Dawn needs macOS 13 or later and [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) installed and signed in once. Build it from source with the Xcode Command Line Tools (`xcode-select --install`):
+Dawn needs macOS 13 or later, on Apple silicon or Intel, and [Claude Code](https://docs.claude.com/en/docs/claude-code/setup) installed and signed in once.
+
+**Download.** Get `Dawn.zip` from the [latest release](https://github.com/Kungie/dawn/releases/latest), unzip it and move `Dawn.app` to Applications. Dawn isn't notarized by Apple yet, so the first time macOS will say it can't check it: open System Settings › Privacy & Security, scroll down and click **Open Anyway**. After that it opens normally.
+
+**Or build it yourself** with the Xcode Command Line Tools (`xcode-select --install`):
 
 ```bash
 git clone https://github.com/Kungie/dawn.git
@@ -36,7 +40,7 @@ cd dawn && make install
 
 That builds `Dawn.app`, copies it to `/Applications` and opens it. Then, in the panel, switch on **Morning ping**, pick a time and days, and under **Setup** click **Set up** next to *Wake the Mac*. macOS asks for your administrator password once, because scheduling a wake is a system setting.
 
-The build is signed ad hoc, not notarized. If you copy it to another Mac, macOS may ask you to confirm the first launch in System Settings › Privacy & Security.
+`make app` builds a universal `build/Dawn.app` and `build/Dawn.zip`, signed ad hoc.
 
 ## How it works, honestly
 
