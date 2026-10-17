@@ -2,7 +2,17 @@
 
 <h1 align="center">Dawn</h1>
 
-<p align="center">A small macOS menu bar app that starts your Claude window before you sit down.<br>By <a href="https://github.com/Kungie">Vektor Labs</a>.</p>
+<p align="center">Starts your Claude window before you sit down. A small app for the macOS menu bar.</p>
+
+<p align="center">
+  <a href="https://github.com/Kungie/dawn/releases/latest"><img src="https://img.shields.io/github/v/release/Kungie/dawn?label=release&color=e2231a&labelColor=2a1b19&style=flat-square" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-13%2B-f3e9d6?logo=apple&logoColor=f3e9d6&labelColor=2a1b19&style=flat-square&color=050303" alt="macOS 13 or later">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-e2231a?labelColor=2a1b19&style=flat-square" alt="Licence: AGPL-3.0"></a>
+</p>
+
+<p align="center"><img src="docs/panel.png" width="380" alt="Dawn's menu bar panel: 1:44 left in the window, resets at 11:00, started by Dawn's ping; the morning ping at 06:30 Mon–Fri; 9.5 hours started early this week."></p>
+
+<p align="center"><a href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.zip"><b>Download for Mac</b></a> · by <a href="https://github.com/Kungie">Vektor Labs</a></p>
 
 ---
 
@@ -11,8 +21,6 @@ Claude's usage window is five hours long and starts with your first message. Cla
 Dawn moves the clock. At 06:30, or whenever you set it, it wakes your sleeping Mac for a minute and sends one tiny message through the official Claude Code command line tool, signed in with your own account. Your window starts while you're still asleep, so by the time you sit down at nine the next fresh one is two and a half hours away instead of five.
 
 It doesn't give you more Claude. Your weekly limit stays exactly where Anthropic put it, and the ping is one short message to the smallest model. Dawn only moves the timing.
-
-<p align="center"><img src="docs/panel.png" width="340" alt="Dawn's menu bar panel: 1:44 left in the window, resets at 11:00, started by Dawn's ping; the morning ping at 06:30 Mon–Fri; 9.5 hours started early this week."></p>
 
 ## What's in the menu bar
 
