@@ -3,7 +3,7 @@
   Dawn
 </h1>
 
-<p align="center">Starts your Claude window before you sit down. A small app for the macOS menu bar.</p>
+<p align="center">Starts your Claude window before you sit down and refreshes it automatically. A small app for the macOS menu bar.</p>
 
 <p align="center">
   <a href="https://github.com/Kungie/dawn/releases/latest"><img src="https://img.shields.io/github/v/release/Kungie/dawn?label=release&color=e2231a&labelColor=2a1b19&style=flat-square" alt="Latest release"></a>
