@@ -353,12 +353,15 @@ struct SettingsView: View {
 
             section("Setup") {
                 SetupRow(title: "Claude Code",
-                         status: model.claudePath.map { ($0 as NSString).abbreviatingWithTildeInPath }
+                         status: model.signedIn == false ? "Signed out. Sign in once in Terminal."
+                             : model.claudePath.map { ($0 as NSString).abbreviatingWithTildeInPath }
                              ?? (model.claudeChecked ? "Not found. Install it and sign in once." : "Looking…"),
-                         ok: model.claudePath != nil) {
+                         ok: model.claudePath != nil && model.signedIn != false) {
                     if model.claudePath == nil {
                         Button("Install") { NSWorkspace.shared.open(URL(string: "https://docs.claude.com/en/docs/claude-code/setup")!) }
                             .buttonStyle(GhostButtonStyle(compact: true))
+                    } else if model.signedIn == false {
+                        Button("Sign in") { model.signIn() }.buttonStyle(GhostButtonStyle(compact: true))
                     } else {
                         Button("Recheck") { model.refreshSystem() }.buttonStyle(GhostButtonStyle(compact: true))
                     }

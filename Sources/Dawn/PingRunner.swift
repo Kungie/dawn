@@ -92,6 +92,21 @@ enum PingRunner {
         return (answer, limit)
     }
 
+    /// `claude auth status`: whether Claude Code is signed in, from Claude Code's own answer.
+    /// Dawn never looks at the login itself.
+    static func signedIn(claude: String) -> Bool? {
+        let out = run(claude, ["auth", "status", "--json"], timeout: 20)
+        guard let data = out.output?.data(using: .utf8),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
+        return json["loggedIn"] as? Bool
+    }
+
+    /// The ping failed because Claude Code isn't signed in (or its login ran out).
+    static func isSignedOut(_ detail: String) -> Bool {
+        let d = detail.lowercased()
+        return d.contains("authenticate") || d.contains("oauth") || d.contains("not logged in") || d.contains("/login")
+    }
+
     /// `claude -p /usage`: Claude Code answers this itself, without a message to the model, so it costs
     /// nothing; `--no-session-persistence` keeps it out of the logs. Dawn reads the "Current session" line.
     static func usage(claude: String) -> WindowLimit? {

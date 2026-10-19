@@ -92,6 +92,8 @@ final class DawnModel: ObservableObject {
     @Published private(set) var limit: WindowLimit? = WindowLimit.load()
     @Published private(set) var claudePath: String?
     @Published private(set) var claudeChecked = false
+    /// Whether Claude Code is signed in (`claude auth status`); nil until known. Pings wait while it's false.
+    @Published private(set) var signedIn: Bool?
     @Published private(set) var wakeStatus: String?
     @Published private(set) var hookInstalled = false
     @Published private(set) var loginItem = false
@@ -182,12 +184,14 @@ final class DawnModel: ObservableObject {
     func refreshSystem() {
         work.async {
             let claude = PingRunner.locateClaude()
+            let signedIn = claude.flatMap { PingRunner.signedIn(claude: $0) }
             let wake = WakeSchedule.current()
             let hook = ClaudeHook.isInstalled()
             Task { @MainActor in
                 let first = self.claudePath == nil && claude != nil
                 self.claudePath = claude
                 self.claudeChecked = true
+                self.setSignedIn(signedIn)
                 if first { self.refreshUsage() }
                 self.wakeStatus = wake
                 self.hookInstalled = hook
@@ -278,7 +282,7 @@ final class DawnModel: ObservableObject {
     private var pingDates: [Date] { history.filter { $0.ok && $0.trigger != .skipped && $0.trigger != .sync }.map(\.date) }
 
     private func checkFollowUp() {
-        guard settings.enabled, settings.followUps, !firing, !demo else { return }
+        guard settings.enabled, settings.followUps, !firing, !demo, signedIn != false else { return }
         let now = Date()
         guard let due = Schedule.nextFollowUp(at: now, settings, pings: pingDates, knownReset: limit?.resetsAt), now >= due else { return }
         if let last = lastFollowUpAttempt, now.timeIntervalSince(last) < 10 * 60 { return }
@@ -287,7 +291,7 @@ final class DawnModel: ObservableObject {
     }
 
     private func checkSchedule() {
-        guard settings.enabled, !firing, !demo else { return }
+        guard settings.enabled, !firing, !demo, signedIn != false else { return }
         let cal = Calendar.current
         let now = Date()
         guard settings.weekdays.contains(cal.component(.weekday, from: now)),
@@ -319,6 +323,18 @@ final class DawnModel: ObservableObject {
             return
         }
         usageRunning = true
+        if signedIn == false {
+            // Signed out: only check whether you've signed in again; the pings wait until then.
+            DispatchQueue.global(qos: .utility).async {
+                let ok = PingRunner.signedIn(claude: claude)
+                Task { @MainActor in
+                    self.usageRunning = false
+                    self.setSignedIn(ok)
+                    if ok == true { self.refreshUsage() }
+                }
+            }
+            return
+        }
         DispatchQueue.global(qos: .utility).async {
             let l = PingRunner.usage(claude: claude)
             Task { @MainActor in
@@ -326,6 +342,24 @@ final class DawnModel: ObservableObject {
                 if let l { self.take(l) } else if pingIfUnknown { self.fire(.sync) }
             }
         }
+    }
+
+    static let signedOutNotice = "Claude Code is signed out, so Dawn can't ping. Click Sign in under Settings › Setup."
+
+    private func setSignedIn(_ value: Bool?) {
+        guard let value else { return }
+        signedIn = value
+        if !value { notice = Self.signedOutNotice } else if notice == Self.signedOutNotice { notice = nil }
+    }
+
+    /// Opens Terminal with `claude auth login`; you sign in there yourself. Dawn checks again every two minutes.
+    func signIn() {
+        guard let claude = claudePath else { return }
+        let command = "'" + claude.replacingOccurrences(of: "'", with: "'\\''") + "' auth login"
+        let source = "tell application \"Terminal\"\nactivate\ndo script \"\(command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\"\nend tell"
+        var error: NSDictionary?
+        NSAppleScript(source: source)?.executeAndReturnError(&error)
+        if error != nil { notice = "Open Terminal and run: claude auth login" }
     }
 
     /// `/usage` gives the reset to the minute; keep the exact second from the status line or a ping when it agrees.
@@ -364,7 +398,11 @@ final class DawnModel: ObservableObject {
                 self.record(FireRecord(date: Date(), trigger: trigger, ok: result.ok, detail: result.detail))
                 // A refreshed window gets the space ping too (not the morning ping: you're probably asleep).
                 if result.ok, trigger == .followUp, self.settings.doneSound { SpacePing.play() }
-                if !result.ok { self.notice = "Ping failed: \(result.detail)" }
+                if !result.ok, PingRunner.isSignedOut(result.detail) {
+                    self.setSignedIn(false)
+                } else if !result.ok {
+                    self.notice = "Ping failed: \(result.detail)"
+                }
                 self.refreshNextFire()
                 self.rescan()
             }
@@ -439,7 +477,7 @@ final class DawnModel: ObservableObject {
 
     /// Something in Settings needs the user: Claude Code missing, or the morning ping is on without a matching wake.
     var setupNeedsAttention: Bool {
-        claudeChecked && (claudePath == nil || (settings.enabled && !wakeMatchesSchedule))
+        claudeChecked && (claudePath == nil || signedIn == false || (settings.enabled && !wakeMatchesSchedule))
     }
 
     /// "Mon–Fri", "Every day", "Weekends" or a short list like "Mon, Wed, Fri".

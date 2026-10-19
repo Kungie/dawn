@@ -84,7 +84,11 @@ case "--version":
 case "status":
     let acts = UsageLog().recentActivity()
     let f = DateFormatter(); f.dateFormat = "EEE HH:mm"
-    print("claude:      \(PingRunner.locateClaude() ?? "not found")")
+    let claudePath = PingRunner.locateClaude()
+    print("claude:      \(claudePath ?? "not found")")
+    if let c = claudePath {
+        print("signed in:   \(PingRunner.signedIn(claude: c).map { $0 ? "yes" : "no (run: claude auth login)" } ?? "unknown")")
+    }
     print("wake:        \(WakeSchedule.current() ?? "none")")
     print("hook:        \(ClaudeHook.isInstalled() ? "installed" : "not installed")")
     if let l = WindowLimit.load() {
