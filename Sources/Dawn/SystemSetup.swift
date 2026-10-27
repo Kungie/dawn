@@ -153,6 +153,9 @@ enum HookCommand {
 
     static func run(stop: Bool) {
         let data = FileHandle.standardInput.readDataToEndOfFile()
+        // A `claude -p` another tool runs in the background from its own hook (Binder marks its runs so)
+        // isn't your session: no dot, no sound.
+        if ProcessInfo.processInfo.environment["BINDER_NESTED"] == "1" { return }
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         let cwd = (json["cwd"] as? String).map { ($0 as NSString).lastPathComponent } ?? ""
         if cwd == PingRunner.projectSuffix { return } // Dawn's own ping: no dot, no sound
