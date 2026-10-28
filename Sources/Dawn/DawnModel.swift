@@ -35,6 +35,9 @@ struct Settings: Codable, Equatable {
     var menuBar: MenuBarShows = .none
     /// After the morning ping, keep a window going: ping again 5 h 1 min after the last ping.
     var followUps = true
+    /// Ask GitHub once a day whether a newer Dawn is out.
+    var checkForUpdates = true
+    var lastUpdateCheck: Date?
 
     init(enabled: Bool = false, hour: Int = 6, minute: Int = 30, weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7],
          model: String = "haiku", doneSound: Bool = true, menuBar: MenuBarShows = .none, followUps: Bool = true) {
@@ -43,18 +46,24 @@ struct Settings: Codable, Equatable {
         self.menuBar = menuBar; self.followUps = followUps
     }
 
-    // Settings saved by an older version simply lack the newer keys; keep everything else.
+    // Settings saved by an older version simply lack the newer keys, and a key that can't be read
+    // (a type that changed) falls back to its default: either way everything else is kept.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = Settings()
-        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? d.enabled
-        hour = try c.decodeIfPresent(Int.self, forKey: .hour) ?? d.hour
-        minute = try c.decodeIfPresent(Int.self, forKey: .minute) ?? d.minute
-        weekdays = try c.decodeIfPresent(Set<Int>.self, forKey: .weekdays) ?? d.weekdays
-        model = try c.decodeIfPresent(String.self, forKey: .model) ?? d.model
-        doneSound = try c.decodeIfPresent(Bool.self, forKey: .doneSound) ?? d.doneSound
-        menuBar = (try? c.decodeIfPresent(MenuBarShows.self, forKey: .menuBar)) ?? d.menuBar
-        followUps = try c.decodeIfPresent(Bool.self, forKey: .followUps) ?? d.followUps
+        func read<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T {
+            ((try? c.decodeIfPresent(T.self, forKey: key)) ?? nil) ?? fallback
+        }
+        enabled = read(.enabled, d.enabled)
+        hour = read(.hour, d.hour)
+        minute = read(.minute, d.minute)
+        weekdays = read(.weekdays, d.weekdays)
+        model = read(.model, d.model)
+        doneSound = read(.doneSound, d.doneSound)
+        menuBar = read(.menuBar, d.menuBar)
+        followUps = read(.followUps, d.followUps)
+        checkForUpdates = read(.checkForUpdates, d.checkForUpdates)
+        lastUpdateCheck = (try? c.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)) ?? nil
     }
 }
 
@@ -116,6 +125,13 @@ final class DawnModel: ObservableObject {
     private let work = DispatchQueue(label: "dawn.work", qos: .utility)
     private var demo = false
 
+    /// Looks for new Dawn releases once a day and installs one when you click Update (see `Updater`).
+    /// It reads and writes `settings` through the model, so the model never saves an older copy over it.
+    lazy var updater = Updater(current: DawnInfo.version,
+                               settings: { [unowned self] in self.settings },
+                               saveSettings: { [unowned self] in self.settings = $0 },
+                               app: Bundle.main.bundleURL, relaunch: Updater.relaunchApp)
+
     init() {
         settings = (defaults.data(forKey: "settings")).flatMap { try? JSONDecoder().decode(Settings.self, from: $0) } ?? Settings()
         history = (defaults.data(forKey: "history")).flatMap { try? JSONDecoder().decode([FireRecord].self, from: $0) } ?? []
@@ -126,6 +142,7 @@ final class DawnModel: ObservableObject {
     // MARK: lifecycle
 
     func start() {
+        if !demo { updater.start() }
         refreshSystem()
         rescan()
         refreshNextFire()

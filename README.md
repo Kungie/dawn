@@ -35,12 +35,20 @@ Download `Dawn.dmg`, drag Dawn into Applications. It isn't notarized yet, so the
 
 Or build it: `git clone https://github.com/Kungie/dawn.git && cd dawn && make install`
 
+**Dawn updates itself** from 0.6.0 on: once a day it asks GitHub whether a newer version is out, and **Update** in the panel installs it and restarts Dawn. It only installs releases signed with Dawn's own release key, and your settings, the morning wake and the Claude Code hook stay as they are. You can switch the daily check off under Settings › Updates. Versions before 0.6.0 need one manual download.
+
 ## Good to know
 
 - Dawn never reads or stores your Claude credentials and uses no API key. It only runs `claude` on your Mac, with your own login.
 - It doesn't give you more Claude: your weekly limit stays the same. It only moves the timing.
 - The Mac has to be plugged in and asleep, not shut down, for the morning wake.
 - Dawn is an independent project, not affiliated with Anthropic. Claude is a trademark of Anthropic, PBC.
+
+## Releasing
+
+1. Bump the version in `Resources/Info.plist` and `DawnInfo.version` (`Sources/Dawn/DawnApp.swift`); they must match the tag.
+2. `make test`, then `make release`: builds `Dawn.dmg` and `Dawn.zip` and signs the zip into `Dawn.zip.sig` with the release key from the Keychain (made once with `swift scripts/update-key.swift`).
+3. `gh release create vX.Y.Z build/Dawn.dmg build/Dawn.zip build/Dawn.zip.sig`. A release without `Dawn.zip.sig` is never installed from inside the app.
 
 ## Licence
 

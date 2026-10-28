@@ -71,6 +71,7 @@ struct MainView: View {
                     .onTapGesture { model.notice = nil }
             }
 
+            UpdateLine(updater: model.updater)
             Ruled { stats.padding(.horizontal, 16).padding(.vertical, 12) }
             Ruled { footer.padding(.horizontal, 16).padding(.vertical, 12) }
         }
@@ -401,6 +402,8 @@ struct SettingsView: View {
                 }
             }
 
+            section("Updates") { UpdatesRows(model: model, updater: model.updater) }
+
             if !model.history.isEmpty {
                 section("Recent pings") {
                     VStack(alignment: .leading, spacing: 3) {
@@ -464,6 +467,79 @@ struct SettingsView: View {
             Text(title).font(Fonts.grotesk(13, weight: 500)).foregroundColor(Ident.cream)
             Spacer(minLength: 8)
             trailing()
+        }
+    }
+}
+
+/// One line in the panel while a new Dawn is out, being installed, or failed to install.
+struct UpdateLine: View {
+    @ObservedObject var updater: Updater
+
+    var body: some View {
+        if let line = updater.panelLine {
+            Ruled {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 10) {
+                        Rectangle().fill(Ident.red).frame(width: 6, height: 6)
+                        Text(line).dawnLabel(Ident.cream)
+                        Spacer(minLength: 8)
+                        switch updater.status {
+                        case .available:
+                            Button("Update") { Task { await updater.install() } }.buttonStyle(GhostButtonStyle(compact: true))
+                        case .failed:
+                            Button("Retry") { Task { await updater.install() } }.buttonStyle(GhostButtonStyle(compact: true))
+                        default:
+                            EmptyView()
+                        }
+                    }
+                    if case let .failed(message) = updater.status {
+                        Text(message).font(Fonts.grotesk(11.5)).foregroundColor(Ident.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 10)
+            }
+        }
+    }
+}
+
+/// Settings › Updates: the daily check, the button, and what happened last.
+struct UpdatesRows: View {
+    @ObservedObject var model: DawnModel
+    @ObservedObject var updater: Updater
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Check for updates daily").font(Fonts.grotesk(13, weight: 500)).foregroundColor(Ident.cream)
+                Spacer(minLength: 8)
+                DawnSwitch(isOn: $model.settings.checkForUpdates)
+            }
+            HStack(spacing: 8) {
+                Text(updater.statusLine(lastCheck: model.settings.lastUpdateCheck))
+                    .font(Fonts.mono(10.5)).tracking(0.6)
+                    .foregroundColor(isAvailable ? Ident.cream : Ident.dim)
+                Spacer(minLength: 8)
+                if isAvailable {
+                    Button("Update now") { Task { await updater.install() } }.buttonStyle(GhostButtonStyle(compact: true))
+                } else {
+                    Button("Check for updates") { Task { await updater.check(manual: true) } }
+                        .buttonStyle(GhostButtonStyle(compact: true))
+                        .disabled(isBusy)
+                }
+            }
+            if case let .failed(message) = updater.status {
+                Text(message).font(Fonts.grotesk(11.5)).foregroundColor(Ident.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var isAvailable: Bool { if case .available = updater.status { return true }; return false }
+    private var isBusy: Bool {
+        switch updater.status {
+        case .checking, .installing: return true
+        default: return false
         }
     }
 }
