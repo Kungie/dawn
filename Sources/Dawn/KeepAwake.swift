@@ -90,9 +90,12 @@ enum KeepAwake {
         sleepDisabled(pmset: PingRunner.run("/usr/bin/pmset", ["-g"], timeout: 5).output ?? "")
     }
 
-    /// Whether the rule is in place, asked of sudo itself (it never prompts with -n).
-    static func ruleInstalled() -> Bool {
-        PingRunner.run("/usr/bin/sudo", ["-n", "-l", "/usr/bin/pmset", "-a", "disablesleep", "1"], timeout: 5).status == 0
+    /// Whether Dawn's rule is in place. Not asked of `sudo -n -l`: an admin may run anything with a
+    /// password, and once any NOPASSWD rule exists sudo lists without one, so it says yes to every command.
+    /// /etc/sudoers.d can be listed without root. If the rule is there but broken, `set` fails and
+    /// switching on writes it again.
+    static func ruleInstalled(at path: String = rulePath) -> Bool {
+        FileManager.default.fileExists(atPath: path)
     }
 
     /// Switches lid sleep without a password, through the rule. False when that didn't work.

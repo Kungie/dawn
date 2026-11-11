@@ -47,6 +47,18 @@ import Testing
         #expect(KeepAwake.removeCommand.contains("pmset -a disablesleep 0"))
     }
 
+    /// Asked of the file, not of `sudo -l`: an admin may run anything with a password, and once any
+    /// NOPASSWD rule exists sudo lists without one, so `sudo -n -l` says yes to every command.
+    @Test func theRuleCheckLooksAtDawnsOwnFile() throws {
+        let dir = makeTempDir("sudoers.d")
+        let file = dir.appendingPathComponent("dawn-keepawake")
+        #expect(!KeepAwake.ruleInstalled(at: file.path))
+        write("someone ALL=(root) NOPASSWD: /bin/ls\n", to: dir.appendingPathComponent("other-tool"))
+        #expect(!KeepAwake.ruleInstalled(at: file.path))
+        write(try #require(KeepAwake.rule(user: "erenmac")) + "\n", to: file)
+        #expect(KeepAwake.ruleInstalled(at: file.path))
+    }
+
     @Test func stopsWhenTimeIsUpOrTheBatteryRunsLow() {
         let now = Date()
         #expect(KeepAwake.shouldStop(now: now, until: now.addingTimeInterval(-1), battery: nil, cutoff: .twenty) == .time)

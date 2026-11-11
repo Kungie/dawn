@@ -249,9 +249,10 @@ final class DawnModel: ObservableObject {
             return
         }
         let error: String?
-        if KeepAwake.ruleInstalled() {
-            error = KeepAwake.set(true) ? nil : "Couldn't turn lid sleep off."
+        if KeepAwake.ruleInstalled(), KeepAwake.set(true) {
+            error = nil
         } else if let command = KeepAwake.installCommand(user: NSUserName()) {
+            // No rule yet, or it no longer works: one password prompt writes it (again) and switches on.
             error = WakeSchedule.admin(command)
         } else {
             error = "Dawn can't set this up for the user name \(NSUserName())."
