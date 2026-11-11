@@ -59,9 +59,9 @@ struct MainView: View {
                     .padding(.horizontal, 12).padding(.bottom, 10)
             }
             ScreenCard(model: model).padding(.horizontal, 12)
+            keepAwakeBlock
 
             if model.window == nil { actions }
-            keepAwakeRow
             morningRow
             autoRefreshRow
 
@@ -78,18 +78,41 @@ struct MainView: View {
         }
     }
 
-    /// Above the morning ping: keep the Mac awake with the lid closed, so Auto refresh and long runs go on.
-    private var keepAwakeRow: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Keep awake with lid closed").font(Fonts.grotesk(13, weight: 500)).foregroundColor(Ident.cream)
-                if let detail = model.keepAwakeDetail { Text(detail).dawnLabel(Ident.red) }
+    /// Under the countdown: keep the Mac awake with the lid closed, so Auto refresh and long runs go on.
+    /// While it's on, how long and the battery stop sit right under it.
+    private var keepAwakeBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Keep awake with lid closed").font(Fonts.grotesk(13, weight: 500)).foregroundColor(Ident.cream)
+                    if let detail = model.keepAwakeDetail { Text(detail).dawnLabel(Ident.red) }
+                }
+                Spacer()
+                DawnSwitch(isOn: Binding(get: { model.keepAwake }, set: { model.setKeepAwake($0) }))
             }
-            Spacer()
-            DawnSwitch(isOn: Binding(get: { model.keepAwake }, set: { model.setKeepAwake($0) }))
+            if model.keepAwake {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Turn off after").dawnLabel()
+                    DawnSegmented(selection: $model.settings.keepAwakeFor)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("On battery, turn off at").dawnLabel()
+                    DawnSegmented(selection: $model.settings.keepAwakeCutoff)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("System-wide while on. Plug in for long runs; never put the Mac in a bag like this.")
+                        .font(Fonts.grotesk(11)).foregroundColor(Ident.dim).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    if model.keepAwakeHelper {
+                        Button("Remove rule") { model.removeKeepAwakeHelper() }
+                            .buttonStyle(DawnTextButtonStyle())
+                            .help("Takes out the sudoers rule that lets Dawn switch this without a password, and lets the Mac sleep again.")
+                    }
+                }
+            }
         }
         .padding(EdgeInsets(top: 16, leading: 16, bottom: 0, trailing: 16))
-        .help("Stops the Mac from sleeping when you close the lid (pmset disablesleep). Dawn switches it back when you quit.")
+        .help("Stops the Mac from sleeping when you close the lid (pmset disablesleep). The first time asks for your password once. Dawn switches it back when you quit.")
     }
 
     private var morningRow: some View {
@@ -352,32 +375,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             PanelHeader(trailing: "Settings")
 
-            section("Keep awake", first: true) {
-                row("Keep awake with lid closed") {
-                    DawnSwitch(isOn: Binding(get: { model.keepAwake }, set: { model.setKeepAwake($0) }))
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Turn off after").font(Fonts.grotesk(13, weight: 500)).foregroundColor(Ident.cream)
-                    DawnSegmented(selection: $model.settings.keepAwakeFor)
-                }
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("On battery, turn off at").font(Fonts.grotesk(13, weight: 500)).foregroundColor(Ident.cream)
-                    DawnSegmented(selection: $model.settings.keepAwakeCutoff)
-                }
-                Text("Auto refresh and long Claude Code runs keep going with the lid closed. It's system-wide while on, and Dawn switches it back when you quit. Plug in for long runs, and never put the Mac in a bag like this.")
-                    .font(Fonts.grotesk(11.5)).foregroundColor(Ident.dim).fixedSize(horizontal: false, vertical: true)
-                HStack {
-                    Text(model.keepAwakeHelper ? "Switches without a password: a sudoers rule that allows only pmset disablesleep."
-                                               : "Asks for your password once, the first time you switch it on.")
-                        .font(Fonts.grotesk(11.5)).foregroundColor(Ident.dim).fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    if model.keepAwakeHelper {
-                        Button("Remove") { model.removeKeepAwakeHelper() }.buttonStyle(GhostButtonStyle(compact: true))
-                    }
-                }
-            }
-
-            section("Morning ping") {
+            section("Morning ping", first: true) {
                 row("Send the morning ping") { DawnSwitch(isOn: $model.settings.enabled) }
                 row("Time") {
                     HStack(spacing: 6) {

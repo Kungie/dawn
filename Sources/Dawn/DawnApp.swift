@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.7.0"
+    static let version = "0.7.1"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -35,6 +35,7 @@ enum Snapshot {
             ("panel-settings", DawnModel.demoModel(settings: true), PanelView.width / 2),
             // As in the menu bar near the screen's right edge: panel pushed left, notch off-centre.
             ("panel-right", DawnModel.demoModel(), 262),
+            ("panel-awake", DawnModel.demoModel(awake: true), PanelView.width / 2),
         ]
         for (name, model, arrowX) in shots {
             let geometry = PanelGeometry()

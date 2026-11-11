@@ -304,7 +304,7 @@ final class DawnModel: ObservableObject {
     /// Under the switch in the panel.
     var keepAwakeDetail: String? {
         guard keepAwake else { return nil }
-        guard keepAwakeByDawn else { return "On · switched on outside Dawn" }
+        guard keepAwakeByDawn || demo else { return "On · switched on outside Dawn" }
         if let until = keepAwakeUntil { return "On · until \(Fmt.hm.string(from: until))" }
         return "On · until you switch it off"
     }
@@ -643,10 +643,16 @@ final class DawnModel: ObservableObject {
 
     // MARK: demo state for README screenshots
 
-    static func demoModel(asking: Bool = false, idle: Bool = false, settings: Bool = false) -> DawnModel {
+    static func demoModel(asking: Bool = false, idle: Bool = false, settings: Bool = false, awake: Bool = false) -> DawnModel {
         let m = DawnModel()
         m.demo = true
         m.settings = Settings(enabled: true, hour: 6, minute: 30, weekdays: [2, 3, 4, 5, 6], model: "haiku")
+        if awake {
+            m.keepAwake = true
+            m.keepAwakeHelper = true
+            m.settings.keepAwakeFor = .twoHours
+            m.keepAwakeUntil = Calendar.current.date(bySettingHour: 11, minute: 16, second: 0, of: Date())
+        }
         let cal = Calendar.current
         let today630 = cal.date(bySettingHour: 6, minute: 30, second: 0, of: Date())!
         m.now = cal.date(bySettingHour: 9, minute: 16, second: 0, of: Date())!
