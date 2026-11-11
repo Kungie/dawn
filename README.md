@@ -25,6 +25,8 @@ Claude's five-hour window starts with your first message. Dawn starts it earlier
 
 **Auto refresh.** A minute after each window resets, Dawn sends the next ping, so a new window is always ready. If the Mac is asleep, the ping goes out when it wakes.
 
+**Keep awake with the lid closed.** One switch above the morning ping stops your Mac from sleeping when you close the lid, so Auto refresh and long Claude Code runs keep going. It uses macOS's own `pmset disablesleep`, the way [Awayke](https://github.com/daemonphantom/Awayke) does. The first time, Dawn asks for your password once to add a sudoers rule that allows only that command; after that it switches without one. It turns itself off after the time you pick, when the battery gets low (20% by default), and when Dawn quits. It's system-wide while on: plug in for long runs and never put the Mac in a bag like this.
+
 **Menu bar clock.** A small sun in the menu bar, with the time left or the share used next to it if you want. The numbers come from Claude Code's own `/usage`, checked every two minutes, which costs none of your limit. With the Claude Code hook on, Dawn also shows a dot and plays a short ping when Claude is waiting for you or has finished; click it to jump to that session.
 
 ## Install

@@ -90,6 +90,8 @@ case "status":
         print("signed in:   \(PingRunner.signedIn(claude: c).map { $0 ? "yes" : "no (run: claude auth login)" } ?? "unknown")")
     }
     print("wake:        \(WakeSchedule.current() ?? "none")")
+    let battery = KeepAwake.battery().map { "battery \($0.percent)%\($0.onBattery ? " on battery" : " on power")" } ?? "no battery"
+    print("keep awake:  \(KeepAwake.current().map { $0 ? "on (lid sleep off)" : "off" } ?? "unknown") · rule \(KeepAwake.ruleInstalled() ? "installed" : "not installed") · \(battery)")
     print("hook:        \(ClaudeHook.isInstalled() ? "installed" : "not installed")")
     if let l = WindowLimit.load() {
         print("from Claude: resets \(f.string(from: l.resetsAt)), \(l.usedPercent.map { "\(Int($0))% used" } ?? "usage unknown"), seen \(f.string(from: l.updated))")

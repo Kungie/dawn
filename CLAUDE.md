@@ -26,8 +26,9 @@ A macOS menu bar app (Swift package, Command Line Tools only, macOS 13+). Code, 
 - Settings are JSON in UserDefaults under `settings` (`io.github.kungie.dawn`). Every field is decoded with a default (`Settings.init(from:)`), so new fields go in the same way and one unreadable field never resets the rest.
 - Claude Code's hook and status line point at `/Applications/Dawn.app/Contents/MacOS/Dawn`; the update replaces the bundle at the same path.
 - The scheduled wake (`pmset`) and the files in `~/Library/Application Support/Dawn` live outside the bundle.
+- Keep awake's sudoers rule (`/etc/sudoers.d/dawn-keepawake`, only `pmset -a disablesleep 0/1`) lives outside the bundle too. Never widen it: `KeepAwakeTests` checks the exact rule, that visudo accepts it, and that it is only moved into place after visudo has checked it. Dawn switches lid sleep back on when it quits and, after a crash, on the next launch.
 - `UpdateInstallerTests` checks all of this; keep it passing.
 
 ## Privacy
 
-Dawn sends nothing to Vektor Labs. It talks to Anthropic only through the official `claude` CLI (the ping and `/usage`) and to GitHub only for the daily update check (`api.github.com`, User-Agent `Dawn`, no data about the user) and the update download. It never reads or stores Claude credentials. If any of this changes, update `../site/datenschutz.html` (the Dawn section) too.
+Dawn sends nothing to Vektor Labs. It talks to Anthropic only through the official `claude` CLI (the ping and `/usage`) and to GitHub only for the daily update check (`api.github.com`, User-Agent `Dawn`, no data about the user) and the update download. It never reads or stores Claude credentials. Keep awake runs only local commands (`pmset`, `sudo -n`) and reads the battery level locally. If any of this changes, update `../site/datenschutz.html` (the Dawn section) too.

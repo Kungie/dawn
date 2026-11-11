@@ -31,8 +31,9 @@ enum WakeSchedule {
         admin("/usr/bin/pmset repeat cancel")
     }
 
-    /// Runs one fixed pmset command through the standard macOS administrator prompt. Returns an error message or nil.
-    private static func admin(_ command: String) -> String? {
+    /// Runs one fixed command through the standard macOS administrator prompt. Returns an error message or nil.
+    /// The command must not contain double quotes or backslashes (it goes into an AppleScript string).
+    static func admin(_ command: String) -> String? {
         var error: NSDictionary?
         let script = NSAppleScript(source: "do shell script \"\(command)\" with administrator privileges")
         script?.executeAndReturnError(&error)

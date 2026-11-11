@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.6.0"
+    static let version = "0.7.0"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -15,6 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DawnModel.shared.start()
             if ProcessInfo.processInfo.environment["DAWN_PANEL_SELFTEST"] == "1" { statusPanel?.selfTest() }
         }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        MainActor.assumeIsolated { DawnModel.shared.willQuit() }
     }
 }
 

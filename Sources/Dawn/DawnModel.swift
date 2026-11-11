@@ -38,6 +38,9 @@ struct Settings: Codable, Equatable {
     /// Ask GitHub once a day whether a newer Dawn is out.
     var checkForUpdates = true
     var lastUpdateCheck: Date?
+    /// Keep awake with the lid closed: how long, and the battery charge it stops at.
+    var keepAwakeFor: KeepAwakeFor = .untilOff
+    var keepAwakeCutoff: KeepAwakeCutoff = .twenty
 
     init(enabled: Bool = false, hour: Int = 6, minute: Int = 30, weekdays: Set<Int> = [1, 2, 3, 4, 5, 6, 7],
          model: String = "haiku", doneSound: Bool = true, menuBar: MenuBarShows = .none, followUps: Bool = true) {
@@ -64,6 +67,8 @@ struct Settings: Codable, Equatable {
         followUps = read(.followUps, d.followUps)
         checkForUpdates = read(.checkForUpdates, d.checkForUpdates)
         lastUpdateCheck = (try? c.decodeIfPresent(Date.self, forKey: .lastUpdateCheck)) ?? nil
+        keepAwakeFor = read(.keepAwakeFor, d.keepAwakeFor)
+        keepAwakeCutoff = read(.keepAwakeCutoff, d.keepAwakeCutoff)
     }
 }
 
@@ -89,7 +94,17 @@ struct UsageWindow: Equatable {
 final class DawnModel: ObservableObject {
     static let shared = DawnModel()
 
-    @Published var settings: Settings { didSet { if settings != oldValue { save(); refreshNextFire() } } }
+    @Published var settings: Settings {
+        didSet {
+            guard settings != oldValue else { return }
+            save()
+            refreshNextFire()
+            // A new duration while Keep awake is on counts from now.
+            if settings.keepAwakeFor != oldValue.keepAwakeFor, keepAwake, keepAwakeByDawn {
+                keepAwakeUntil = settings.keepAwakeFor.hours.map { Date().addingTimeInterval(Double($0) * 3600) }
+            }
+        }
+    }
     @Published private(set) var now = Date()
     @Published private(set) var window: UsageWindow?
     @Published private(set) var history: [FireRecord]
@@ -125,6 +140,18 @@ final class DawnModel: ObservableObject {
     private let work = DispatchQueue(label: "dawn.work", qos: .utility)
     private var demo = false
 
+    /// Lid sleep is off right now (`pmset` SleepDisabled), whoever switched it.
+    @Published private(set) var keepAwake = false
+    /// When Keep awake switches itself off, if you picked a duration.
+    @Published private(set) var keepAwakeUntil: Date?
+    /// The sudoers rule is in place, so the switch needs no password.
+    @Published private(set) var keepAwakeHelper = false
+    /// Dawn switched lid sleep off and has to switch it back on (also after a crash: see `start`).
+    private var keepAwakeByDawn: Bool {
+        get { defaults.bool(forKey: "keepAwakeByDawn") }
+        set { defaults.set(newValue, forKey: "keepAwakeByDawn") }
+    }
+
     /// Looks for new Dawn releases once a day and installs one when you click Update (see `Updater`).
     /// It reads and writes `settings` through the model, so the model never saves an older copy over it.
     lazy var updater = Updater(current: DawnInfo.version,
@@ -143,6 +170,13 @@ final class DawnModel: ObservableObject {
 
     func start() {
         if !demo { updater.start() }
+        // Dawn quit or crashed while it kept the Mac awake, so nothing watched the time or the battery: sleep again.
+        refreshKeepAwake()
+        if keepAwakeByDawn {
+            if keepAwake { stopKeepAwake() }
+            keepAwakeByDawn = false
+            refreshKeepAwake()
+        }
         refreshSystem()
         rescan()
         refreshNextFire()
@@ -150,7 +184,10 @@ final class DawnModel: ObservableObject {
             Task { @MainActor in self?.tick() }
         })
         timers.append(Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.rescan() }
+            Task { @MainActor in
+                self?.rescan()
+                self?.refreshKeepAwake(helper: false)
+            }
         })
         timers.append(Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshUsage() }
@@ -196,6 +233,80 @@ final class DawnModel: ObservableObject {
         checkSchedule()
         checkFollowUp()
         refreshNextFire()
+        checkKeepAwake()
+    }
+
+    // MARK: keep awake
+
+    /// The switch: on asks for the password once (to add the rule), then never again.
+    func setKeepAwake(_ on: Bool) {
+        guard !demo else { return }
+        defer { refreshKeepAwake() }
+        guard on else { stopKeepAwake(); return }
+        if let b = KeepAwake.battery(),
+           case .battery = KeepAwake.shouldStop(now: Date(), until: nil, battery: b, cutoff: settings.keepAwakeCutoff) {
+            notice = "The battery is at \(b.percent)%, at or below the \(settings.keepAwakeCutoff.label) you set. Plug the Mac in first."
+            return
+        }
+        let error: String?
+        if KeepAwake.ruleInstalled() {
+            error = KeepAwake.set(true) ? nil : "Couldn't turn lid sleep off."
+        } else if let command = KeepAwake.installCommand(user: NSUserName()) {
+            error = WakeSchedule.admin(command)
+        } else {
+            error = "Dawn can't set this up for the user name \(NSUserName())."
+        }
+        if let error { notice = error; return }
+        keepAwakeByDawn = true
+        keepAwakeUntil = settings.keepAwakeFor.hours.map { Date().addingTimeInterval(Double($0) * 3600) }
+    }
+
+    /// Lets the Mac sleep with the lid closed again. Without the rule it asks for the password, but only if it's off.
+    private func stopKeepAwake() {
+        keepAwakeUntil = nil
+        keepAwakeByDawn = false
+        guard !KeepAwake.set(false), KeepAwake.current() == true else { return }
+        if let error = WakeSchedule.admin("/usr/bin/pmset -a disablesleep 0") { notice = error }
+    }
+
+    func refreshKeepAwake(helper: Bool = true) {
+        guard !demo else { return }
+        keepAwake = KeepAwake.current() ?? false
+        if helper { keepAwakeHelper = KeepAwake.ruleInstalled() }
+        if !keepAwake { keepAwakeUntil = nil }
+    }
+
+    /// Every 15 s while Dawn keeps the Mac awake: the time you picked, and the battery.
+    private func checkKeepAwake() {
+        guard keepAwake, keepAwakeByDawn, !demo,
+              let reason = KeepAwake.shouldStop(now: Date(), until: keepAwakeUntil, battery: KeepAwake.battery(),
+                                                cutoff: settings.keepAwakeCutoff) else { return }
+        stopKeepAwake()
+        refreshKeepAwake(helper: false)
+        if case let .battery(percent) = reason { notice = "Keep awake is off: the battery is at \(percent)%." }
+    }
+
+    /// Settings › Keep awake › Remove: takes the sudoers rule out and lets the Mac sleep again.
+    func removeKeepAwakeHelper() {
+        notice = WakeSchedule.admin(KeepAwake.removeCommand)
+        keepAwakeByDawn = false
+        keepAwakeUntil = nil
+        refreshKeepAwake()
+    }
+
+    /// Dawn is quitting: the Mac sleeps with the lid closed again if Dawn stopped it.
+    func willQuit() {
+        guard keepAwakeByDawn else { return }
+        _ = KeepAwake.set(false)
+        keepAwakeByDawn = false
+    }
+
+    /// Under the switch in the panel.
+    var keepAwakeDetail: String? {
+        guard keepAwake else { return nil }
+        guard keepAwakeByDawn else { return "On · switched on outside Dawn" }
+        if let until = keepAwakeUntil { return "On · until \(Fmt.hm.string(from: until))" }
+        return "On · until you switch it off"
     }
 
     func refreshSystem() {
