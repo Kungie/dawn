@@ -95,6 +95,34 @@ struct DawnLogo: View {
     }
 }
 
+/// A laptop seen from the side with its lid up: a flat base and the lid at an angle from the hinge.
+/// Keep awake's icon, in Dawn's red on a small card tile; dimmed while it's off.
+struct LidIcon: View {
+    var on = false
+
+    var body: some View {
+        Canvas { ctx, size in
+            let s = size.width / 16
+            let t = 2.2 * s // bar thickness
+            // Base: a flat bar along the bottom.
+            ctx.fill(Path(roundedRect: CGRect(x: 1 * s, y: 12.4 * s, width: 14 * s, height: t), cornerRadius: t / 2),
+                     with: .color(Look.red))
+            // Lid: as long as the base, hinged just above its left end and opened to 45 degrees.
+            var lid = ctx
+            lid.translateBy(x: 2.2 * s, y: 11.0 * s)
+            lid.rotate(by: .degrees(-45))
+            lid.fill(Path(roundedRect: CGRect(x: 0, y: -t / 2, width: 14 * s, height: t), cornerRadius: t / 2),
+                     with: .color(Look.red))
+        }
+        .frame(width: 18, height: 18)
+        .opacity(on ? 1 : 0.55)
+        .frame(width: 30, height: 30)
+        .background(RoundedRectangle(cornerRadius: Look.control, style: .continuous).fill(Look.card))
+        .overlay(RoundedRectangle(cornerRadius: Look.control, style: .continuous).strokeBorder(Look.line, lineWidth: 1))
+        .animation(.easeOut(duration: 0.15), value: on)
+    }
+}
+
 // MARK: - Controls
 
 /// A small pill switch. On is light, off is a raised track: colour is kept for things that mean something.

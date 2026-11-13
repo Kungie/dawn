@@ -84,7 +84,8 @@ struct MainView: View {
     /// While it's on, how long and the battery stop sit right under it.
     private var keepAwakeBlock: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
+                LidIcon(on: model.keepAwake)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Keep awake with lid closed").font(Fonts.text(13))
                     if let detail = model.keepAwakeDetail {
