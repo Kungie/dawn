@@ -148,9 +148,9 @@ final class Updater: ObservableObject {
     /// The one line in the panel, or nil when there's nothing to say there.
     var panelLine: String? {
         switch status {
-        case let .available(v): return "DAWN \(v) IS OUT"
-        case let .installing(v): return "UPDATING TO \(v)…"
-        case .failed where installFailed: return "UPDATE FAILED"
+        case let .available(v): return "Dawn \(v) is out"
+        case let .installing(v): return "Updating to \(v)…"
+        case .failed where installFailed: return "Update failed"
         default: return nil
         }
     }
@@ -158,13 +158,13 @@ final class Updater: ObservableObject {
     /// The status line under Settings › Updates.
     func statusLine(lastCheck: Date?, now: Date = Date()) -> String {
         switch status {
-        case .checking: return "CHECKING…"
-        case let .available(v): return "\(v) IS OUT"
-        case let .installing(v): return "UPDATING TO \(v)…"
-        case .upToDate: return "UP TO DATE · \(current)" + (lastCheck.map { " · CHECKED \(Self.when($0, now: now))" } ?? "")
+        case .checking: return "Checking…"
+        case let .available(v): return "\(v) is out"
+        case let .installing(v): return "Updating to \(v)…"
+        case .upToDate: return "Up to date · \(current)" + (lastCheck.map { " · checked \(Self.when($0, now: now))" } ?? "")
         case .idle, .failed:
-            guard let lastCheck else { return "NOT CHECKED YET · \(current)" }
-            return "\(current) · CHECKED \(Self.when(lastCheck, now: now))"
+            guard let lastCheck else { return "Not checked yet · \(current)" }
+            return "\(current) · checked \(Self.when(lastCheck, now: now))"
         }
     }
 
@@ -172,6 +172,6 @@ final class Updater: ObservableObject {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = Calendar.current.isDate(date, inSameDayAs: now) ? "HH:mm" : "EEE HH:mm"
-        return f.string(from: date).uppercased()
+        return f.string(from: date)
     }
 }

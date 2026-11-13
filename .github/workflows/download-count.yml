@@ -26,7 +26,7 @@ jobs:
           git init -q badges && cd badges
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           if git fetch -q origin badges 2>/dev/null; then git checkout -q -b badges FETCH_HEAD; else git checkout -q --orphan badges; fi
-          printf '{"schemaVersion":1,"label":"Download for Mac","message":"%s","labelColor":"e2231a","color":"2a1b19","namedLogo":"apple","logoColor":"f3e9d6","style":"for-the-badge"}\n' "$n" > downloads.json
+          printf '{"schemaVersion":1,"label":"Download for Mac","message":"%s","labelColor":"e2231a","color":"1c1c1f","namedLogo":"apple","logoColor":"ffffff","style":"for-the-badge"}\n' "$n" > downloads.json
           git add downloads.json
           git diff --cached --quiet && exit 0
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "Downloads: $n"

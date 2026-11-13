@@ -10,6 +10,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
 
-The fonts in Resources/Fonts (Archivo, VT323, Space Grotesk, Space Mono) are not
+The fonts in Resources/Fonts (Inter, Geist Mono) are not
 covered by the AGPL. They are licensed under the SIL Open Font License 1.1; see
 the OFL-*.txt files next to them.

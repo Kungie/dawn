@@ -2,18 +2,32 @@ import AppKit
 import CoreText
 import SwiftUI
 
-/// Dawn's "Ident" palette: red, cream and an almost-black.
-enum Ident {
-    static let black = Color(hex: 0x050303)
-    static let black2 = Color(hex: 0x0E0908)
-    static let line = Color(hex: 0x2A1B19)
-    static let cream = Color(hex: 0xF3E9D6)
-    static let cream2 = Color(hex: 0xE6D9BE)
-    static let sand = Color(hex: 0xD2C09B)
+/// Binder's look: dark only, mostly black and white. Colour is small (a dot, an icon, a 2 px bar) and always
+/// means something. Dawn keeps its red for its own mark: the sun, the running window's bar and the one
+/// main action.
+enum Look {
+    static let bg = Color(hex: 0x0B0B0C)
+    static let panel = Color(hex: 0x141416)
+    static let card = Color(hex: 0x1C1C1F)
+    static let raised = Color(hex: 0x242428)
+    static let line = Color(hex: 0x26262A)
+    static let lineStrong = Color(hex: 0x34343A)
+    static let text = Color(hex: 0xEDEDED)
+    static let text2 = Color(hex: 0xA1A1A1)
+    static let text3 = Color(hex: 0x6B6B6B)
+
+    /// Dawn's sun.
     static let red = Color(hex: 0xE2231A)
-    static let redDeep = Color(hex: 0x8F0F0B)
-    static let dim = Color(hex: 0xA09189)
-    static let ok = Color(hex: 0x7FD49A)
+    static let progress = Color(hex: 0xF2C94C)
+    static let done = Color(hex: 0x8B7CF6)
+    static let attention = Color(hex: 0xF2994A)
+    static let bad = Color(hex: 0xEB5757)
+    static let ok = Color(hex: 0x4CB782)
+    static let todo = Color(hex: 0xD4D4D4)
+
+    /// Corner radii: controls and cards / panels.
+    static let control: CGFloat = 8
+    static let radius: CGFloat = 10
 }
 
 extension Color {
@@ -24,8 +38,9 @@ extension Color {
     }
 }
 
-/// Fonts ship inside the app (Resources/Fonts, SIL Open Font License) and are registered for this process only.
-/// Every accessor falls back to a system font, so a build without the fonts still looks reasonable.
+/// Inter for text and Geist Mono for numbers, ids and paths, weights 400 and 500 only. They ship inside the
+/// app (Resources/Fonts, SIL Open Font License) and are registered for this process; every accessor falls
+/// back to the system font.
 enum Fonts {
     static func register() {
         guard let dir = Bundle.main.resourceURL?.appendingPathComponent("Fonts"),
@@ -36,144 +51,235 @@ enum Fonts {
         }
     }
 
-    private static let wght = 0x7767_6874 // 'wght'
-    private static let wdth = 0x7764_7468 // 'wdth'
-
-    private static func variable(_ name: String, family: String, size: CGFloat, axes: [Int: CGFloat]) -> CTFont? {
-        let base = CTFontDescriptorCreateWithNameAndSize(name as CFString, size)
-        let attrs = [kCTFontVariationAttribute: axes.reduce(into: [NSNumber: NSNumber]()) { $0[NSNumber(value: $1.key)] = NSNumber(value: Double($1.value)) }]
-        let font = CTFontCreateWithFontDescriptor(CTFontDescriptorCreateCopyWithAttributes(base, attrs as CFDictionary), size, nil)
-        return (CTFontCopyFamilyName(font) as String).hasPrefix(family) ? font : nil
+    static func text(_ size: CGFloat = 13, medium: Bool = false) -> Font {
+        let name = medium ? "Inter-Medium" : "Inter-Regular"
+        return NSFont(name: name, size: size) != nil ? .custom(name, size: size) : .system(size: size, weight: medium ? .medium : .regular)
     }
 
-    /// Archivo at 125 % width: the big cut-out headline type of the Ident site.
-    static func archivo(_ size: CGFloat, weight: CGFloat = 900) -> Font {
-        if let f = variable("ArchivoRoman-Regular", family: "Archivo", size: size, axes: [wdth: 125, wght: weight]) { return Font(f) }
-        return .system(size: size, weight: .black).width(.expanded)
-    }
-
-    /// VT323: the pixel face of Dawn's screen.
-    static func vt(_ size: CGFloat) -> Font {
-        NSFont(name: "VT323-Regular", size: size) != nil ? .custom("VT323-Regular", size: size) : .system(size: size * 0.8, design: .monospaced)
-    }
-
-    /// Space Grotesk for body text.
-    static func grotesk(_ size: CGFloat, weight: CGFloat = 400) -> Font {
-        if let f = variable("SpaceGrotesk-Light", family: "Space Grotesk", size: size, axes: [wght: weight]) { return Font(f) }
-        return .system(size: size)
-    }
-
-    /// Space Mono for small technical labels.
-    static func mono(_ size: CGFloat, bold: Bool = false) -> Font {
-        let name = bold ? "SpaceMono-Bold" : "SpaceMono-Regular"
-        return NSFont(name: name, size: size) != nil ? .custom(name, size: size) : .system(size: size, design: .monospaced)
+    static func mono(_ size: CGFloat = 12, medium: Bool = false) -> Font {
+        let name = medium ? "GeistMono-Medium" : "GeistMono-Regular"
+        return NSFont(name: name, size: size) != nil
+            ? .custom(name, size: size)
+            : .system(size: size, weight: medium ? .medium : .regular, design: .monospaced)
     }
 }
 
-/// A striped sun on a horizon: thicker black cuts toward the bottom, like the sunrise on the site.
-struct StripedSun: View {
-    var rise: Double = 0.75
-    var color: Color = Ident.red
+// MARK: - Dawn's mark
 
-    var body: some View {
-        Canvas { ctx, size in
-            let w = size.width, h = size.height
-            let r = min(w * 0.36, h * 0.9)
-            let cy = h + r * 0.35 - rise * (r * 1.05)
-            ctx.clip(to: Path(CGRect(x: 0, y: 0, width: w, height: h - 3)))
-            ctx.fill(Path(ellipseIn: CGRect(x: w / 2 - r, y: cy - r, width: r * 2, height: r * 2)), with: .color(color))
-            for c in 0..<6 {
-                let y = cy - r * 0.05 + Double(c) * r * 0.16
-                ctx.fill(Path(CGRect(x: 0, y: y, width: w, height: 1.2 + Double(c) * r * 0.025)), with: .color(Ident.black))
-            }
-        }
-        .overlay(alignment: .bottom) { Rectangle().fill(Ident.cream).frame(height: 3) }
-    }
+/// Dawn's mark: a red sun whose lower part is cut into three strips by horizontal gaps, like a sunrise.
+/// The gaps are transparent, so it sits on any background.
+enum DawnMark {
+    /// Gaps as (top, bottom) in fractions of the diameter, from the top.
+    static let gaps: [(CGFloat, CGFloat)] = [(0.555, 0.615), (0.705, 0.76), (0.85, 0.9)]
 }
 
-/// CRT scanlines over the screen card.
-struct Scanlines: View {
-    var opacity: Double = 0.22
+struct DawnLogo: View {
+    var color: Color = Look.red
+    /// Dims the mark when there's no window running.
+    var lit = true
+
     var body: some View {
         Canvas { ctx, size in
-            var y = 0.0
-            while y < size.height {
-                ctx.fill(Path(CGRect(x: 0, y: y + 2, width: size.width, height: 1)), with: .color(.black.opacity(opacity)))
-                y += 3
+            let d = min(size.width, size.height)
+            let box = CGRect(x: (size.width - d) / 2, y: (size.height - d) / 2, width: d, height: d)
+            ctx.drawLayer { layer in
+                layer.fill(Path(ellipseIn: box), with: .color(color))
+                layer.blendMode = .clear
+                for (top, bottom) in DawnMark.gaps {
+                    layer.fill(Path(CGRect(x: box.minX, y: box.minY + top * d, width: d, height: (bottom - top) * d)), with: .color(.black))
+                }
             }
         }
-        .allowsHitTesting(false)
+        .opacity(lit ? 1 : 0.45)
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 
 // MARK: - Controls
 
-struct RedButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(Fonts.archivo(11.5, weight: 800))
-            .foregroundColor(Ident.cream)
-            .padding(.horizontal, 12).padding(.vertical, 8)
-            .frame(maxWidth: .infinity)
-            .background(configuration.isPressed ? Ident.redDeep : Ident.red)
-            .contentShape(Rectangle())
-            .pointerCursor()
-    }
-}
-
-struct GhostButtonStyle: ButtonStyle {
-    var compact = false
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(Fonts.grotesk(compact ? 11 : 12, weight: 500))
-            .foregroundColor(Ident.cream)
-            .padding(.horizontal, compact ? 8 : 12).padding(.vertical, compact ? 4 : 7)
-            .background(configuration.isPressed ? Ident.line : Color.clear)
-            .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(Ident.cream.opacity(0.85), lineWidth: 1.2))
-            .contentShape(Rectangle())
-            .pointerCursor()
-    }
-}
-
-/// A flat red/black switch that renders the same in the app and in snapshots.
-struct IdentToggleStyle: ToggleStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        Button { configuration.isOn.toggle() } label: {
-            HStack(spacing: 10) {
-                configuration.label
-                Spacer(minLength: 6)
-                ZStack(alignment: configuration.isOn ? .trailing : .leading) {
-                    Rectangle().fill(configuration.isOn ? Ident.red : Ident.line).frame(width: 30, height: 15)
-                    Rectangle().fill(Ident.cream).frame(width: 11, height: 11).padding(2)
-                }
-                .animation(.easeOut(duration: 0.15), value: configuration.isOn)
+/// A small pill switch. On is light, off is a raised track: colour is kept for things that mean something.
+struct DawnSwitch: View {
+    @Binding var isOn: Bool
+    var body: some View {
+        Button { isOn.toggle() } label: {
+            ZStack(alignment: isOn ? .trailing : .leading) {
+                Capsule().fill(isOn ? Look.text : Look.raised)
+                    .overlay(Capsule().strokeBorder(isOn ? Color.clear : Look.lineStrong, lineWidth: 1))
+                Circle().fill(isOn ? Look.bg : Look.text2).frame(width: 12, height: 12).padding(3)
             }
+            .frame(width: 30, height: 18)
+            .animation(.easeOut(duration: 0.15), value: isOn)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .pointerCursor()
+        .accessibilityValue(isOn ? "on" : "off")
+    }
+}
+
+/// A segmented control: a card with a hairline, the chosen option on a raised fill.
+struct DawnSegmented<Option: Hashable & CaseIterable>: View where Option.AllCases: RandomAccessCollection, Option: Labelled {
+    @Binding var selection: Option
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(Option.allCases), id: \.self) { option in
+                let on = option == selection
+                Button { selection = option } label: {
+                    Text(option.label)
+                        .font(Fonts.text(12, medium: on))
+                        .foregroundColor(on ? Look.text : Look.text3)
+                        .frame(minWidth: 44, minHeight: 22)
+                        .padding(.horizontal, 4)
+                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(on ? Look.raised : Color.clear))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .pointerCursor()
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(2)
+        .background(RoundedRectangle(cornerRadius: Look.control, style: .continuous).fill(Look.card))
+        .overlay(RoundedRectangle(cornerRadius: Look.control, style: .continuous).strokeBorder(Look.line, lineWidth: 1))
+        .animation(.easeOut(duration: 0.12), value: selection)
+    }
+}
+
+protocol Labelled { var label: String { get } }
+extension MenuBarShows: Labelled {}
+
+/// A small button: card fill, hairline border, 8 px corners.
+struct ControlButtonStyle: ButtonStyle {
+    var compact = true
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Fonts.text(12, medium: true))
+            .foregroundColor(Look.text)
+            .padding(.horizontal, compact ? 10 : 12)
+            .frame(height: compact ? 24 : 28)
+            .background(RoundedRectangle(cornerRadius: Look.control, style: .continuous)
+                .fill(configuration.isPressed ? Look.raised : Look.card))
+            .overlay(RoundedRectangle(cornerRadius: Look.control, style: .continuous).strokeBorder(Look.lineStrong, lineWidth: 1))
+            .contentShape(Rectangle())
+            .pointerCursor()
+    }
+}
+
+/// The one main action, in Dawn's red.
+struct DawnPrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(Fonts.text(13, medium: true))
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity, minHeight: 32)
+            .background(RoundedRectangle(cornerRadius: Look.control, style: .continuous).fill(Look.red))
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .contentShape(Rectangle())
+            .pointerCursor()
+    }
+}
+
+/// Plain text actions: "Settings", "Quit", "I started in Claude.ai".
+struct DawnTextButtonStyle: ButtonStyle {
+    var color: Color = Look.text2
+    var hoverColor: Color = Look.text
+    func makeBody(configuration: Configuration) -> some View {
+        HoverText(label: configuration.label, pressed: configuration.isPressed, color: color, hoverColor: hoverColor)
+    }
+}
+
+final class HoverBox: ObservableObject {
+    @Published var on = false
+}
+
+/// Text action that answers the mouse: on hover it brightens and gets a thin red underline, and the cursor
+/// turns into a pointing hand.
+struct HoverText<Label: View>: View {
+    let label: Label
+    let pressed: Bool
+    let color: Color
+    let hoverColor: Color
+    @StateObject private var hover = HoverBox()
+
+    var body: some View {
+        let active = hover.on || pressed
+        label
+            .font(Fonts.text(13))
+            .foregroundColor(active ? hoverColor : color)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(Look.red).frame(height: 1).offset(y: 3).opacity(active ? 1 : 0)
+            }
+            .opacity(pressed ? 0.75 : 1)
+            .contentShape(Rectangle())
+            .onHover { hover.on = $0 }
+            .animation(.easeOut(duration: 0.12), value: active)
+            .pointerCursor()
+    }
+}
+
+/// A 24 px pill: card fill, hairline border, an optional dot, 12 px text.
+struct Chip: View {
+    let text: String
+    var dot: Color?
+    var body: some View {
+        HStack(spacing: 6) {
+            if let dot { Circle().fill(dot).frame(width: 6, height: 6) }
+            Text(text).font(Fonts.text(12)).foregroundColor(Look.text2).lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 24)
+        .background(Capsule().fill(Look.card))
+        .overlay(Capsule().strokeBorder(Look.line, lineWidth: 1))
+    }
+}
+
+/// A status dot: colour that means something.
+struct Dot: View {
+    let color: Color
+    var size: CGFloat = 6
+    var body: some View { Circle().fill(color).frame(width: size, height: size) }
+}
+
+extension View {
+    /// The pointing-hand cursor while the mouse is over this view.
+    func pointerCursor() -> some View {
+        onHover { inside in
+            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+        }
+    }
+
+    /// A small caption over a group: 12 px, the third text colour, sentence case.
+    func caption(_ color: Color = Look.text3) -> some View {
+        self.font(Fonts.text(12)).foregroundColor(color)
+    }
+
+    /// A card or panel surface: fill, hairline border, 10 px corners.
+    func surface(_ fill: Color = Look.card) -> some View {
+        self.background(RoundedRectangle(cornerRadius: Look.radius, style: .continuous).fill(fill))
+            .overlay(RoundedRectangle(cornerRadius: Look.radius, style: .continuous).strokeBorder(Look.line, lineWidth: 1))
     }
 }
 
 // MARK: - Menu bar icon
 
 enum MenuBarIcon {
-    /// An 18 pt template image: half a sun on a horizon with two cuts.
+    /// An 18 pt template image of Dawn's mark.
     /// Claude Code waiting: a ringed dot top right. Claude finished: a solid dot top right.
     static func image(asking: Bool, done: Bool = false) -> NSImage {
         let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
-            NSColor.black.setFill()
-            // Same proportions as the website's menu bar: a horizon bar, a small gap, then a half sun.
-            NSRect(x: 2.5, y: 3.6, width: 13, height: 1.3).fill()
-            let sun = NSBezierPath()
-            sun.appendArc(withCenter: NSPoint(x: 9, y: 5.6), radius: 5.8, startAngle: 0, endAngle: 180)
-            sun.close()
-            sun.fill()
-            // Two thin cuts through the sun; with the gap above the horizon it reads as a stack of bars.
+            NSColor.black.set()
+            // Dawn's mark: a 13 pt sun with three gaps across its lower part.
+            let d: CGFloat = 13, x: CGFloat = 2.5, y: CGFloat = 2.5
+            NSBezierPath(ovalIn: NSRect(x: x, y: y, width: d, height: d)).fill()
             NSGraphicsContext.current?.compositingOperation = .clear
-            NSRect(x: 0, y: 7.3, width: 18, height: 0.7).fill()
-            NSRect(x: 0, y: 9.3, width: 18, height: 0.7).fill()
+            for (top, bottom) in DawnMark.gaps {
+                // The image isn't flipped: fractions from the top become heights from the bottom.
+                NSRect(x: x, y: y + d - bottom * d, width: d, height: max(1, (bottom - top) * d)).fill()
+            }
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
             if asking || done {
                 // Knock out a gap around the mark so it reads against the sun.
+                NSGraphicsContext.current?.compositingOperation = .clear
                 NSBezierPath(ovalIn: NSRect(x: 11.2, y: 9.2, width: 7.6, height: 7.6)).fill()
                 NSGraphicsContext.current?.compositingOperation = .sourceOver
                 if asking {
@@ -191,206 +297,17 @@ enum MenuBarIcon {
         return img
     }
 
-    /// The countdown next to the sun: Space Grotesk Medium with tabular figures, like the website's menu bar.
-    /// Falls back to the system font.
+    /// The text next to the sun: Inter Medium with tabular figures, falling back to the system font.
     static func title(_ text: String) -> NSAttributedString {
-        let system = NSFont.menuBarFont(ofSize: 0).pointSize
-        let size = system + 1
-        let base = CTFontDescriptorCreateWithNameAndSize("SpaceGrotesk-Light" as CFString, size)
+        let size = NSFont.menuBarFont(ofSize: 0).pointSize
+        let base = CTFontDescriptorCreateWithNameAndSize("Inter-Medium" as CFString, size)
         let attrs: [CFString: Any] = [
-            kCTFontVariationAttribute: [NSNumber(value: 0x7767_6874): NSNumber(value: 500)], // wght 500
             kCTFontFeatureSettingsAttribute: [[kCTFontOpenTypeFeatureTag: "tnum", kCTFontOpenTypeFeatureValue: 1]],
         ]
         let ct = CTFontCreateWithFontDescriptor(CTFontDescriptorCreateCopyWithAttributes(base, attrs as CFDictionary), size, nil)
-        if (CTFontCopyFamilyName(ct) as String).hasPrefix("Space Grotesk") {
+        if (CTFontCopyFamilyName(ct) as String).hasPrefix("Inter") {
             return NSAttributedString(string: text, attributes: [.font: ct as NSFont])
         }
-        return NSAttributedString(string: text, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: system, weight: .regular)])
-    }
-}
-
-// MARK: - Panel design (Claude Design, October 2026)
-
-/// The small header chip: the striped V mark, a cream and a sand triangle cut by thin red lines, on a red square with a cream border.
-struct DawnChip: View {
-    var size: CGFloat = 22
-    var body: some View {
-        Canvas { ctx, sz in
-            let s = sz.width / 24
-            func p(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: x * s, y: y * s) }
-            let frame = Path(CGRect(x: 1.25 * s, y: 1.25 * s, width: 21.5 * s, height: 21.5 * s))
-            ctx.fill(frame, with: .color(Ident.red))
-            ctx.stroke(frame, with: .color(Ident.cream), lineWidth: 2.5 * s)
-            var left = Path(); left.addLines([p(5.5, 5.5), p(9.6, 5.5), p(12, 12.6), p(12, 18.5)]); left.closeSubpath()
-            var right = Path(); right.addLines([p(18.5, 5.5), p(14.4, 5.5), p(12, 12.6), p(12, 18.5)]); right.closeSubpath()
-            ctx.fill(left, with: .color(Ident.cream))
-            ctx.fill(right, with: .color(Ident.sand))
-            for y in [6.45, 7.89, 9.34, 10.78, 12.23, 13.67, 15.11, 16.56] {
-                ctx.fill(Path(CGRect(x: 4 * s, y: y * s, width: 16 * s, height: 0.5 * s)), with: .color(Ident.red))
-            }
-        }
-        .frame(width: size, height: size)
-    }
-}
-
-/// "DAWN" in Archivo expanded with the stacked black and red cut-out shadow.
-struct Wordmark: View {
-    var text = "DAWN"
-    var size: CGFloat = 17
-    var body: some View {
-        let t = Text(text).font(Fonts.archivo(size)).tracking(size * 0.01)
-        ZStack {
-            t.foregroundColor(Ident.redDeep).offset(y: 4)
-            t.foregroundColor(Ident.black).offset(y: 3)
-            t.foregroundColor(Ident.red).offset(y: 2)
-            t.foregroundColor(Ident.black).offset(y: 1)
-            t.foregroundColor(Ident.cream)
-        }
-        .padding(.bottom, 4)
-    }
-}
-
-/// Dawn's sun (viewBox 100 × 50): a red half-disc on the bottom edge, cut by black bands that thicken downwards.
-/// `rise` 1 = fully up, 0 = sunk by half its height (the "next ping" state).
-struct DawnSun: View {
-    var rise: Double = 1
-    var body: some View {
-        Canvas { ctx, sz in
-            let s = sz.width / 100
-            let drop = (1 - rise) * 26 * s
-            ctx.clip(to: Path(CGRect(origin: .zero, size: sz)))
-            // A full disc centred on the bottom edge; the frame clips it to the upper half.
-            let sun = Path(ellipseIn: CGRect(x: 8 * s, y: 8 * s + drop, width: 84 * s, height: 84 * s))
-            ctx.fill(sun, with: .color(Ident.red))
-            ctx.clip(to: sun)
-            // Risen: four bands. Low on the horizon: the two thin ones from the design.
-            let cuts: [(Double, Double)] = rise > 0.5 ? [(27, 1.6), (34, 2.6), (40, 3.4), (44.5, 3.8)] : [(38, 1.4), (44, 2.4)]
-            for (y, h) in cuts {
-                ctx.fill(Path(CGRect(x: 0, y: y * s, width: sz.width, height: h * s)), with: .color(Ident.black))
-            }
-        }
-        .aspectRatio(2, contentMode: .fit)
-    }
-}
-
-/// The 36 × 20 square switch from the design.
-struct DawnSwitch: View {
-    @Binding var isOn: Bool
-    var body: some View {
-        Button { isOn.toggle() } label: {
-            ZStack(alignment: isOn ? .trailing : .leading) {
-                Rectangle().fill(isOn ? Ident.red : Ident.line)
-                Rectangle().fill(isOn ? Ident.cream : Ident.dim).frame(width: 16, height: 16).padding(2)
-            }
-            .frame(width: 36, height: 20)
-            .animation(.easeOut(duration: 0.15), value: isOn)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .pointerCursor()
-        .accessibilityValue(isOn ? "on" : "off")
-    }
-}
-
-/// A row of square options, the chosen one filled red. Same build as `DawnSwitch`.
-struct DawnSegmented<Option: Hashable & CaseIterable>: View where Option.AllCases: RandomAccessCollection, Option: Labelled {
-    @Binding var selection: Option
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(Array(Option.allCases), id: \.self) { option in
-                let on = option == selection
-                Button { selection = option } label: {
-                    Text(option.label.uppercased())
-                        .font(Fonts.mono(10.5))
-                        .tracking(0.6)
-                        .foregroundColor(on ? Ident.cream : Ident.dim)
-                        .frame(minWidth: 46, minHeight: 20)
-                        .padding(.horizontal, 4)
-                        .background(Rectangle().fill(on ? Ident.red : Ident.line))
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .pointerCursor()
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-        .animation(.easeOut(duration: 0.15), value: selection)
-    }
-}
-
-protocol Labelled { var label: String { get } }
-extension MenuBarShows: Labelled {}
-
-/// The big red action with a hard red-deep shadow under it.
-struct DawnPrimaryButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(Fonts.archivo(13, weight: 900))
-            .tracking(0.52)
-            .textCase(.uppercase)
-            .foregroundColor(Ident.cream)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .background(ZStack {
-                Rectangle().fill(Ident.redDeep).offset(y: configuration.isPressed ? 1 : 3)
-                Rectangle().fill(Ident.red)
-            })
-            .offset(y: configuration.isPressed ? 2 : 0)
-            .padding(.bottom, 3)
-            .contentShape(Rectangle())
-            .pointerCursor()
-    }
-}
-
-/// Plain text actions: "Settings", "Quit", "I started in Claude.ai".
-struct DawnTextButtonStyle: ButtonStyle {
-    var color: Color = Ident.cream2
-    var hoverColor: Color = Ident.cream
-    func makeBody(configuration: Configuration) -> some View {
-        HoverText(label: configuration.label, pressed: configuration.isPressed, color: color, hoverColor: hoverColor)
-    }
-}
-
-final class HoverBox: ObservableObject {
-    @Published var on = false
-}
-
-/// Text action that answers the mouse: on hover it brightens and gets a red underline, and the cursor turns
-/// into a pointing hand.
-struct HoverText<Label: View>: View {
-    let label: Label
-    let pressed: Bool
-    let color: Color
-    let hoverColor: Color
-    @StateObject private var hover = HoverBox()
-
-    var body: some View {
-        let active = hover.on || pressed
-        label
-            .font(Fonts.grotesk(13, weight: 500))
-            .foregroundColor(active ? hoverColor : color)
-            .overlay(alignment: .bottom) {
-                Rectangle().fill(Ident.red).frame(height: 1.5).offset(y: 3).opacity(active ? 1 : 0)
-            }
-            .opacity(pressed ? 0.75 : 1)
-            .contentShape(Rectangle())
-            .onHover { hover.on = $0 }
-            .animation(.easeOut(duration: 0.12), value: active)
-            .pointerCursor()
-    }
-}
-
-extension View {
-    /// The pointing-hand cursor while the mouse is over this view.
-    func pointerCursor() -> some View {
-        onHover { inside in
-            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-        }
-    }
-}
-
-extension View {
-    /// Space Mono bold uppercase label, the design's section caption.
-    func dawnLabel(_ color: Color = Ident.dim) -> some View {
-        self.font(Fonts.mono(11, bold: true)).tracking(1.1).textCase(.uppercase).foregroundColor(color)
+        return NSAttributedString(string: text, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: size, weight: .medium)])
     }
 }

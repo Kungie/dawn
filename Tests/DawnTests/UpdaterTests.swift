@@ -51,7 +51,7 @@ import Testing
         #expect(u.status == .available(version: "0.6.1"))
         #expect(store.settings.lastUpdateCheck != nil)
         #expect(store.settings.hour == 5)
-        #expect(u.panelLine == "DAWN 0.6.1 IS OUT")
+        #expect(u.panelLine == "Dawn 0.6.1 is out")
     }
 
     @Test func saysUpToDateWhenItIs() async {
@@ -63,13 +63,13 @@ import Testing
 
     @Test func theStatusLineSaysWhatHappened() async {
         let u = updater(current: "0.6.0", answer: { _ in Self.release("0.6.0") })
-        #expect(u.statusLine(lastCheck: nil) == "NOT CHECKED YET · 0.6.0")
+        #expect(u.statusLine(lastCheck: nil) == "Not checked yet · 0.6.0")
         let at = Calendar.current.date(bySettingHour: 9, minute: 41, second: 0, of: Date())!
         await u.check(manual: true)
-        #expect(u.statusLine(lastCheck: at) == "UP TO DATE · 0.6.0 · CHECKED 09:41")
+        #expect(u.statusLine(lastCheck: at) == "Up to date · 0.6.0 · checked 09:41")
         let newer = updater(current: "0.6.0", answer: { _ in Self.release("0.6.1") })
         await newer.check(manual: true)
-        #expect(newer.statusLine(lastCheck: at) == "0.6.1 IS OUT")
+        #expect(newer.statusLine(lastCheck: at) == "0.6.1 is out")
     }
 
     @Test func anUnsignedReleaseOfThisVersionIsUpToDate() async {
@@ -149,6 +149,6 @@ import Testing
         await u.check(manual: false)
         await u.install()
         #expect(u.status == .failed("The download didn't match Dawn's signature, so I left Dawn as it is."))
-        #expect(u.panelLine == "UPDATE FAILED")
+        #expect(u.panelLine == "Update failed")
     }
 }

@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.7.2"
+    static let version = "0.8.0"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -88,34 +88,31 @@ enum Snapshot {
         try? png.write(to: URL(fileURLWithPath: path))
     }
 
-    /// The installer window's background (640 × 420 pt): Dawn on the left, Applications on the right,
-    /// a stepped red pixel arrow between them. Finder draws the icon names in white (dark mode) or black
-    /// (light mode), so each icon sits on a mid-tone pad where both stay readable.
+    /// The installer window's background (640 × 420 pt): Dawn on the left, Applications on the right, an
+    /// arrow between them. Finder draws the icon names in white (dark mode) or black (light mode), so each
+    /// icon sits on a mid-grey pad where both stay readable.
     @MainActor
     static func dmgBackground(to path: String, scale: CGFloat) {
         let art = ZStack {
-            Ident.black
-            EllipticalGradient(colors: [Ident.red.opacity(0.22), Ident.red.opacity(0)],
-                               center: UnitPoint(x: 0.5, y: 0.58), startRadiusFraction: 0, endRadiusFraction: 0.65)
+            Look.bg
             ForEach([CGPoint(x: 170, y: 214), CGPoint(x: 470, y: 214)], id: \.x) { c in
-                Rectangle()
-                    .fill(Color(hex: 0x7D6C64))
-                    .overlay(Rectangle().strokeBorder(Color(hex: 0x9A8A82), lineWidth: 1))
+                RoundedRectangle(cornerRadius: Look.radius, style: .continuous)
+                    .fill(Color(hex: 0x5C5C62))
+                    .overlay(RoundedRectangle(cornerRadius: Look.radius, style: .continuous).strokeBorder(Color(hex: 0x76767C), lineWidth: 1))
                     .frame(width: 168, height: 176)
                     .position(c)
             }
-            DmgArrow().frame(width: 104, height: 28).position(x: 320, y: 205)
-            HStack(spacing: 10) {
-                DawnChip(size: 22)
-                Wordmark(size: 17)
+            DmgArrow().frame(width: 72, height: 16).position(x: 320, y: 205)
+            HStack(spacing: 8) {
+                DawnLogo().frame(width: 20, height: 20)
+                Text("Dawn").font(Fonts.text(16, medium: true)).foregroundColor(Look.text)
             }
             .position(x: 320, y: 56)
             VStack(spacing: 6) {
-                Text("Drag Dawn into Applications").font(Fonts.grotesk(16, weight: 500)).foregroundColor(Ident.cream)
-                Text("THEN OPEN IT FROM THERE · MACOS 13+").font(Fonts.vt(17)).foregroundColor(Ident.dim)
+                Text("Drag Dawn into Applications").font(Fonts.text(15, medium: true)).foregroundColor(Look.text)
+                Text("Then open it from there. macOS 13 or later.").font(Fonts.text(12)).foregroundColor(Look.text3)
             }
             .position(x: 320, y: 352)
-            Scanlines(opacity: 0.35)
         }
         .frame(width: 640, height: 420)
         let renderer = ImageRenderer(content: art)
@@ -125,26 +122,13 @@ enum Snapshot {
         try? png.write(to: URL(fileURLWithPath: path))
     }
 
-    /// The app icon: a striped red sun rising over a cream horizon on black glass.
+    /// The app icon: Dawn's red striped sun on black.
     @MainActor
     static func icon(to path: String) {
         let art = ZStack {
-            RoundedRectangle(cornerRadius: 185, style: .continuous).fill(
-                RadialGradient(colors: [Color(hex: 0x2A0D0A), Ident.black], center: .init(x: 0.5, y: 0.62), startRadius: 10, endRadius: 560))
-            Canvas { ctx, size in
-                // Sun centred on the horizon, cut by black bands that thicken toward the bottom, as on the site.
-                let horizon = size.height * 0.68, r = size.width * 0.32, cx = size.width / 2
-                ctx.clip(to: Path(CGRect(x: 0, y: 0, width: size.width, height: horizon)))
-                ctx.fill(Path(ellipseIn: CGRect(x: cx - r, y: horizon - r, width: r * 2, height: r * 2)), with: .color(Ident.red))
-                for c in 0..<5 {
-                    let y = horizon - r * 0.58 + Double(c) * r * 0.13
-                    ctx.fill(Path(CGRect(x: 0, y: y, width: size.width, height: r * (0.03 + Double(c) * 0.014))), with: .color(Ident.black))
-                }
-            }
-            .frame(width: 824, height: 824)
-            Rectangle().fill(Ident.cream).frame(width: 560, height: 16).offset(y: 824 * 0.18 + 8)
-            Scanlines().clipShape(RoundedRectangle(cornerRadius: 185, style: .continuous)).opacity(0.6)
-            RoundedRectangle(cornerRadius: 185, style: .continuous).strokeBorder(Ident.line, lineWidth: 6)
+            RoundedRectangle(cornerRadius: 185, style: .continuous).fill(Look.bg)
+            RoundedRectangle(cornerRadius: 185, style: .continuous).strokeBorder(Look.line, lineWidth: 6)
+            DawnLogo().frame(width: 500, height: 500)
         }
         .frame(width: 824, height: 824)
         .frame(width: 1024, height: 1024)
@@ -212,34 +196,18 @@ struct MenuBarScene: View {
 }
 
 
-/// A right-pointing arrow of 4 pt pixels: a shaft and a stepped head, like the panel's notch.
+/// A plain right-pointing arrow: a 2 pt line with an open head, in the second text colour.
 struct DmgArrow: View {
     var body: some View {
         Canvas { ctx, size in
-            let p: CGFloat = 4
-            let mid = (size.height / p / 2).rounded(.down)
-            let headStart = size.width / p - 6
-            var x: CGFloat = 0
-            while x < size.width / p {
-                let col = x
-                if col < headStart {
-                    // shaft: two pixels thick, with a dithered tail at the start
-                    if col >= 3 || Int(col) % 2 == 0 {
-                        for r in [mid - 1, mid] {
-                            ctx.fill(Path(CGRect(x: col * p, y: r * p, width: p, height: p)), with: .color(Ident.red))
-                        }
-                    }
-                } else {
-                    // head: half-height shrinks one pixel per column
-                    let half = 6 - (col - headStart)
-                    var r = mid - half
-                    while r <= mid + half - 1 {
-                        ctx.fill(Path(CGRect(x: col * p, y: r * p, width: p, height: p)), with: .color(Ident.red))
-                        r += 1
-                    }
-                }
-                x += 1
-            }
+            let mid = size.height / 2
+            var path = Path()
+            path.move(to: CGPoint(x: 1, y: mid))
+            path.addLine(to: CGPoint(x: size.width - 1, y: mid))
+            path.move(to: CGPoint(x: size.width - mid - 1, y: 1))
+            path.addLine(to: CGPoint(x: size.width - 1, y: mid))
+            path.addLine(to: CGPoint(x: size.width - mid - 1, y: size.height - 1))
+            ctx.stroke(path, with: .color(Look.text2), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
     }
 }
