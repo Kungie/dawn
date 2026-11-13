@@ -38,7 +38,7 @@ extension Color {
     }
 }
 
-/// Inter for text and Geist Mono for numbers, ids and paths, weights 400 and 500 only. They ship inside the
+/// Inter for text and Geist Mono for numbers, ids and paths, weights 400 and 500 (600 for the big countdown). They ship inside the
 /// app (Resources/Fonts, SIL Open Font License) and are registered for this process; every accessor falls
 /// back to the system font.
 enum Fonts {
@@ -61,6 +61,14 @@ enum Fonts {
         return NSFont(name: name, size: size) != nil
             ? .custom(name, size: size)
             : .system(size: size, weight: medium ? .medium : .regular, design: .monospaced)
+    }
+
+    /// The big countdown. Large type reads lighter than the same weight small, so it takes one step up
+    /// (600) to look like the 22 pt morning ping time next to it.
+    static func display(_ size: CGFloat) -> Font {
+        NSFont(name: "GeistMono-SemiBold", size: size) != nil
+            ? .custom("GeistMono-SemiBold", size: size)
+            : .system(size: size, weight: .semibold, design: .monospaced)
     }
 }
 

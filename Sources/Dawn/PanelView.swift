@@ -273,7 +273,7 @@ struct ScreenCard: View {
                 Text(f.right).font(Fonts.mono(12)).foregroundColor(Look.text2)
             }
             HStack(alignment: .bottom) {
-                Text(f.big).font(Fonts.mono(44, medium: true)).foregroundColor(Look.text).monospacedDigit()
+                Text(f.big).font(Fonts.display(44)).foregroundColor(Look.text).monospacedDigit()
                     .lineLimit(1).minimumScaleFactor(0.6)
                 Spacer(minLength: 8)
                 DawnLogo(lit: f.rise > 0.5).frame(width: 44, height: 44).padding(.bottom, 6)
