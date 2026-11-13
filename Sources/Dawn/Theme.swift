@@ -325,16 +325,11 @@ enum MenuBarIcon {
         return img
     }
 
-    /// The text next to the sun: Inter Medium with tabular figures, falling back to the system font.
+    /// The text next to the sun: Geist Mono Medium like every other number in Dawn, falling back to the system font.
     static func title(_ text: String) -> NSAttributedString {
         let size = NSFont.menuBarFont(ofSize: 0).pointSize
-        let base = CTFontDescriptorCreateWithNameAndSize("Inter-Medium" as CFString, size)
-        let attrs: [CFString: Any] = [
-            kCTFontFeatureSettingsAttribute: [[kCTFontOpenTypeFeatureTag: "tnum", kCTFontOpenTypeFeatureValue: 1]],
-        ]
-        let ct = CTFontCreateWithFontDescriptor(CTFontDescriptorCreateCopyWithAttributes(base, attrs as CFDictionary), size, nil)
-        if (CTFontCopyFamilyName(ct) as String).hasPrefix("Inter") {
-            return NSAttributedString(string: text, attributes: [.font: ct as NSFont])
+        if let font = NSFont(name: "GeistMono-Medium", size: size) {
+            return NSAttributedString(string: text, attributes: [.font: font])
         }
         return NSAttributedString(string: text, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: size, weight: .medium)])
     }
