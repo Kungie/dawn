@@ -71,21 +71,32 @@ h1{font-size:clamp(36px,5vw,54px);line-height:1.06;font-weight:500;letter-spacin
 
 /* timeline */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
-.tl{padding:24px;overflow-x:auto}
-.tl-in{min-width:640px;display:flex;flex-direction:column;gap:18px}
-.row{display:flex;align-items:center;gap:16px}
-.row-label{width:112px;flex-shrink:0;font-size:13px;color:var(--text-2)}
-.row-label.on{color:var(--text);font-weight:500}
-.track{flex-grow:1;position:relative;height:36px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
-.scale{flex-grow:1;position:relative;height:16px;font-family:var(--mono);font-size:11px;color:var(--text-2)}
-.scale span{position:absolute;transform:translateX(-50%)}
-.scale span:first-child{transform:none}
-.scale span:last-child{transform:translateX(-100%)}
-.win{position:absolute;top:5px;bottom:5px;display:flex;align-items:center;gap:8px;padding:0 10px;background:var(--raised);border:1px solid var(--line-strong);border-radius:6px;font-family:var(--mono);font-size:11px;white-space:nowrap}
-.win.dawn{background:var(--red-tint);border-color:var(--red)}
-.win.open{border-right:none;border-radius:6px 0 0 6px}
-.marker{flex-grow:1;position:relative;height:20px}
-.marker>span{position:absolute;left:20%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);white-space:nowrap}
+.tl-scroll{overflow-x:auto;padding:28px 24px 24px}
+.tl-in{min-width:760px;display:flex;flex-direction:column;gap:28px}
+.tl-row{display:grid;grid-template-columns:112px 1fr;gap:16px;align-items:start}
+.tl-name{font-size:14px;font-weight:500;padding-top:13px}
+.tl-track{position:relative;height:74px}
+.tl-track::before{content:"";position:absolute;left:0;right:0;top:0;height:46px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.tb{position:absolute;top:4px;height:38px;border-radius:6px;display:flex;align-items:center;padding:0 10px;font-family:var(--mono);font-size:11px;letter-spacing:.06em;white-space:nowrap;overflow:hidden}
+.tb.sleep{background:#4a1310;color:#f3b9b5}
+.tb.use{background:var(--red);color:#fff}
+.tb.wait{background:repeating-linear-gradient(135deg,#34343a 0 2px,transparent 2px 8px);border:1px solid var(--line-strong);color:var(--text)}
+.tb.wait span{background:var(--panel);padding:2px 6px;border-radius:4px}
+.tb.fresh{background:var(--red-tint);border:1px solid var(--red);color:var(--text)}
+.tb.next{background:var(--raised);border:1px solid var(--line-strong);color:var(--text)}
+.pin{position:absolute;top:0;height:60px;border-left:1px solid var(--text-2)}
+.pin b{position:absolute;bottom:-4px;left:6px;font-family:var(--mono);font-size:12px;font-weight:500;white-space:nowrap}
+.pin b em{font-style:normal;font-weight:400;color:var(--text-2)}
+.pin.red{border-color:var(--red)}
+.pin.red b{color:#ff6a5f}
+.tl-axis{position:relative;height:16px;font-family:var(--mono);font-size:11px;color:var(--text-2)}
+.tl-axis span{position:absolute;transform:translateX(-50%)}
+.tl-axis span:first-child{transform:none}
+.tl-axis span:last-child{transform:translateX(-100%)}
+.legend{display:flex;flex-wrap:wrap;gap:10px 24px;font-size:13px;color:var(--text-2)}
+.legend span{display:flex;align-items:center;gap:8px}
+.legend i{width:22px;height:12px;border-radius:3px;display:inline-block}
+.tl-note{font-size:15px;color:var(--text-2);max-width:760px}
 
 /* cards */
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
@@ -183,39 +194,50 @@ footer{border-top:1px solid var(--line)}
     <div class="wrap sec">
       <div class="head">
         <p class="eyebrow">How it works</p>
-        <h2>It moves the timing, not the limit.</h2>
-        <p class="lead">You start at 09:00. Without Dawn your window opens then and resets at 14:00. With a 06:30 ping it's already two and a half hours in, resets at 11:30, and Auto refresh starts the next one a minute later.</p>
+        <h2>Same Claude. Better timing.</h2>
+        <p class="lead">Here is an ordinary heavy day, drawn twice. Same person, same plan, same amount of work. The only difference is when the first message went out.</p>
       </div>
-      <div class="panel tl" role="img" aria-label="Timeline from 06:00 to 21:00. Without Dawn: windows 09:00 to 14:00 and 14:00 to 19:00. With Dawn: 06:30 to 11:30, 11:31 to 16:31, then 16:32 onwards. You sit down at 09:00.">
-        <div class="tl-in" aria-hidden="true">
-          <div class="row">
-            <div class="row-label"></div>
-            <div class="scale">
-              <span style="left:0">06:00</span><span style="left:20%">09:00</span><span style="left:40%">12:00</span><span style="left:60%">15:00</span><span style="left:80%">18:00</span><span style="left:100%">21:00</span>
+      <figure class="panel">
+        <div class="tl-scroll" aria-hidden="true">
+          <div class="tl-in">
+            <div class="tl-row">
+              <div class="tl-name">Without Dawn</div>
+              <div class="tl-track">
+                <div class="tb use" style="left:18.75%;width:15.625%">WORKING</div>
+                <div class="tb wait" style="left:34.375%;width:15.625%"><span>WAITING</span></div>
+                <div class="tb next" style="left:50%;width:31.25%">NEXT WINDOW</div>
+                <div class="pin" style="left:18.75%"><b>09:00 <em>you start</em></b></div>
+                <div class="pin red" style="left:34.375%"><b>11:30 <em>limit</em></b></div>
+                <div class="pin" style="left:50%"><b>14:00 <em>reset</em></b></div>
+              </div>
             </div>
-          </div>
-          <div class="row">
-            <div class="row-label">Without Dawn</div>
-            <div class="track">
-              <div class="win" style="left:20%;width:33.33%">09:00 – 14:00</div>
-              <div class="win" style="left:53.33%;width:33.33%">14:00 – 19:00</div>
+            <div class="tl-row">
+              <div class="tl-name">With Dawn</div>
+              <div class="tl-track">
+                <div class="tb sleep" style="left:3.125%;width:15.625%">ASLEEP</div>
+                <div class="tb use" style="left:18.75%;width:15.625%">WORKING</div>
+                <div class="tb fresh" style="left:34.375%;width:31.25%">FRESH WINDOW</div>
+                <div class="tb next" style="left:65.625%;width:31.25%">AND ANOTHER</div>
+                <div class="pin red" style="left:3.125%"><b>06:30 <em>ping</em></b></div>
+                <div class="pin" style="left:18.75%"><b>09:00 <em>you start</em></b></div>
+                <div class="pin" style="left:34.375%"><b>11:30 <em>reset</em></b></div>
+              </div>
             </div>
-          </div>
-          <div class="row">
-            <div class="row-label on">With Dawn</div>
-            <div class="track">
-              <div class="win dawn" style="left:3.33%;width:33.33%"><span class="dot" style="background:var(--red)"></span>06:30 – 11:30</div>
-              <div class="win" style="left:36.67%;width:33.33%">11:31 – 16:31</div>
-              <div class="win open" style="left:70%;right:0">16:32 –</div>
+            <div class="tl-row">
+              <div></div>
+              <div class="tl-axis"><span style="left:0">06:00</span><span style="left:12.5%">08</span><span style="left:25%">10</span><span style="left:37.5%">12</span><span style="left:50%">14</span><span style="left:62.5%">16</span><span style="left:75%">18</span><span style="left:87.5%">20</span><span style="left:100%">22:00</span></div>
             </div>
-          </div>
-          <div class="row">
-            <div class="row-label"></div>
-            <div class="marker"><span><span class="dot" style="background:var(--progress)"></span>You sit down</span></div>
           </div>
         </div>
-      </div>
-      <p class="muted" style="font-size:13px">Your weekly limit stays where Anthropic set it. Dawn only changes when each window starts.</p>
+        <div class="legend" aria-hidden="true" style="padding:0 24px 24px">
+          <span><i style="background:#4a1310"></i>Window running while you sleep</span>
+          <span><i style="background:var(--red)"></i>Window in use</span>
+          <span><i style="background:repeating-linear-gradient(135deg,#6b6b6b 0 1.5px,transparent 1.5px 5px);border:1px solid var(--line-strong)"></i>Limit reached, waiting for the reset</span>
+          <span><i style="background:var(--red-tint);border:1px solid var(--red)"></i>Fresh window, ready to use</span>
+        </div>
+        <figcaption style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Timeline from 06:00 to 22:00. Without Dawn: the first message at 09:00 starts a window that runs until 14:00. The limit is reached at 11:30, then nothing until the reset at 14:00, and the next window runs from 14:00 to 19:00. With Dawn: Dawn pings at 06:30, so the first window runs from 06:30 to 11:30. You start at 09:00, and fresh windows follow from 11:30 to 16:30 and from 16:30 to 21:30.</figcaption>
+      </figure>
+      <p class="tl-note">Without Dawn, your window starts when you do. Run out at half eleven and you wait two and a half hours for the reset. With Dawn, the window started at 06:30 while you were asleep, so it resets at 11:30, right about when you would have hit the limit. The amount of Claude is the same; the waiting moved into the hours you were in bed. Your own numbers depend on your plan and how hard you push it.</p>
     </div>
   </section>
 
