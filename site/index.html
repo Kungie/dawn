@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dawn: your Claude window, already running</title>
+<meta name="description" content="Dawn is a free menu bar app for macOS. It starts your five-hour Claude window early through the official Claude Code CLI, refreshes it through the day, and shows how much is left.">
+<meta name="theme-color" content="#0b0b0c">
+<meta property="og:title" content="Dawn">
+<meta property="og:description" content="Your Claude window, already running when you sit down.">
+<meta property="og:image" content="https://dawn.erenkahraman.dev/assets/shots/readme.png">
+<meta property="og:url" content="https://dawn.erenkahraman.dev/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<link rel="preload" href="assets/fonts/Inter-Regular-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Inter-Medium-latin.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Inter";font-weight:400;font-display:swap;src:url("assets/fonts/Inter-Regular-latin.woff2") format("woff2")}
+@font-face{font-family:"Inter";font-weight:500;font-display:swap;src:url("assets/fonts/Inter-Medium-latin.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:400;font-display:swap;src:url("assets/fonts/GeistMono-Regular-latin.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:500;font-display:swap;src:url("assets/fonts/GeistMono-Medium-latin.woff2") format("woff2")}
+:root{--bg:#0b0b0c;--panel:#141416;--card:#1c1c1f;--raised:#242428;--line:#26262a;--line-strong:#34343a;--text:#ededed;--text-2:#a1a1a1;--red:#e2231a;--red-hover:#c91e16;--red-tint:#2a1514;--ok:#4cb782;--progress:#f2c94c;--urgent:#f2994a;--sans:"Inter",ui-sans-serif,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--text);text-decoration:none}
+a:hover{color:#fff}
+a:focus-visible{outline:1px solid var(--text-2);outline-offset:3px;border-radius:8px}
+img{display:block;max-width:100%;height:auto}
+h1,h2,h3,p,figure{margin:0}
+.mono{font-family:var(--mono)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+section{border-top:1px solid var(--line)}
+.sec{padding-block:80px;display:flex;flex-direction:column;gap:32px}
+.head{display:flex;flex-direction:column;gap:10px;max-width:640px}
+.eyebrow{font-family:var(--mono);font-size:12px;color:var(--text-2);text-transform:uppercase;letter-spacing:.08em}
+h2{font-size:32px;line-height:1.15;font-weight:500;letter-spacing:-.02em}
+.lead{color:var(--text-2);font-size:16px}
+.muted{color:var(--text-2)}
+
+/* nav */
+header{border-bottom:1px solid var(--line)}
+nav{display:flex;align-items:center;gap:24px;padding-top:14px;padding-bottom:14px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:500}
+.navlinks{display:flex;gap:24px;font-size:14px;margin-left:8px}
+.navlinks a{color:var(--text-2);transition:color 120ms}
+.navlinks a:hover{color:var(--text)}
+.grow{flex-grow:1}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:10px;height:44px;padding:0 20px;border-radius:8px;font-size:15px;font-weight:500;transition:background 120ms}
+.btn-sm{height:32px;padding:0 14px;font-size:13px}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover{background:var(--red-hover);color:#fff}
+.btn-line{background:var(--card);border:1px solid var(--line-strong)}
+.btn-line:hover{background:var(--raised)}
+
+/* hero */
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:56px;padding-top:88px;padding-bottom:72px}
+.hero-text{flex:1 1 420px;min-width:0;display:flex;flex-direction:column;gap:24px}
+.hero-shot{flex:1 1 420px;min-width:0;display:flex;justify-content:center}
+.hero-shot img{width:100%;max-width:520px}
+h1{font-size:clamp(36px,5vw,54px);line-height:1.06;font-weight:500;letter-spacing:-.025em}
+.hero-text>p.lead{font-size:18px;max-width:520px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:12px;color:var(--text-2)}
+.dot{width:6px;height:6px;border-radius:999px;flex-shrink:0}
+.actions{display:flex;flex-wrap:wrap;gap:12px;padding-top:4px}
+.fine{font-family:var(--mono);font-size:12px;color:var(--text-2)}
+
+/* timeline */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.tl{padding:24px;overflow-x:auto}
+.tl-in{min-width:640px;display:flex;flex-direction:column;gap:18px}
+.row{display:flex;align-items:center;gap:16px}
+.row-label{width:112px;flex-shrink:0;font-size:13px;color:var(--text-2)}
+.row-label.on{color:var(--text);font-weight:500}
+.track{flex-grow:1;position:relative;height:36px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+.scale{flex-grow:1;position:relative;height:16px;font-family:var(--mono);font-size:11px;color:var(--text-2)}
+.scale span{position:absolute;transform:translateX(-50%)}
+.scale span:first-child{transform:none}
+.scale span:last-child{transform:translateX(-100%)}
+.win{position:absolute;top:5px;bottom:5px;display:flex;align-items:center;gap:8px;padding:0 10px;background:var(--raised);border:1px solid var(--line-strong);border-radius:6px;font-family:var(--mono);font-size:11px;white-space:nowrap}
+.win.dawn{background:var(--red-tint);border-color:var(--red)}
+.win.open{border-right:none;border-radius:6px 0 0 6px}
+.marker{flex-grow:1;position:relative;height:20px}
+.marker>span{position:absolute;left:20%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);white-space:nowrap}
+
+/* cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:10px}
+.card h3{font-size:15px;font-weight:500}
+.card p{font-size:14px;color:var(--text-2)}
+.icon{width:32px;height:32px;border-radius:8px;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--text-2)}
+.code{font-family:var(--mono);font-size:13px;color:var(--text)}
+pre.code{margin:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.step{font-family:var(--mono);font-size:12px;color:var(--red)}
+
+/* screens */
+.shots{padding-block:80px;display:flex;flex-wrap:wrap;gap:24px;justify-content:center}
+.shots figure{flex:1 1 320px;max-width:400px;display:flex;flex-direction:column;gap:14px;align-items:center}
+.shots img{width:100%;max-width:340px}
+.shots figcaption{font-size:13px;color:var(--text-2);text-align:center}
+
+/* privacy */
+.split{padding-block:80px;display:flex;flex-wrap:wrap;gap:40px}
+.split>.head{flex:1 1 300px;min-width:0}
+.split>.panel{flex:2 1 480px;min-width:0}
+.item{padding:18px 20px;display:flex;gap:14px}
+.item+.item{border-top:1px solid var(--line)}
+.item .dot{margin-top:9px;background:var(--ok)}
+.item strong{font-weight:500;display:block}
+.item span.muted{font-size:14px}
+
+/* cta and footer */
+.cta{padding-block:96px;display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center}
+footer{border-top:1px solid var(--line)}
+.foot{padding-top:28px;padding-bottom:40px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-start;justify-content:space-between}
+.foot p{font-size:12px;color:var(--text-2);max-width:520px}
+.foot-links{display:flex;flex-wrap:wrap;gap:20px;font-size:13px}
+.foot-links a{color:var(--text-2);border-bottom:1px solid transparent;transition:color 120ms,border-color 120ms}
+.foot-links a:hover{color:var(--text);border-bottom-color:var(--red)}
+
+@media (max-width:640px){.navlinks{display:none}.hero{padding-top:56px;gap:40px}.sec,.shots,.split{padding-block:56px}.cta{padding-block:72px}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <mask id="sun-gaps" maskContentUnits="objectBoundingBox">
+      <rect width="1" height="1" fill="#fff"></rect>
+      <rect y=".555" width="1" height=".06" fill="#000"></rect>
+      <rect y=".705" width="1" height=".055" fill="#000"></rect>
+      <rect y=".85" width="1" height=".05" fill="#000"></rect>
+    </mask>
+  </defs>
+</svg>
+
+<header>
+  <nav class="wrap" aria-label="Main">
+    <a class="brand" href="#top">
+      <svg width="20" height="20" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" fill="#e2231a" mask="url(#sun-gaps)"></circle></svg>
+      <span>Dawn</span>
+    </a>
+    <div class="navlinks">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#setup">Setup</a>
+      <a href="https://github.com/Kungie/dawn">GitHub</a>
+    </div>
+    <div class="grow"></div>
+    <a class="btn btn-sm btn-red" href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.dmg">Download</a>
+  </nav>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div class="hero-text">
+      <div class="chips">
+        <span class="chip mono"><span class="dot" style="background:var(--ok)"></span><span id="version">v0.8.3</span></span>
+        <span class="chip">Free and open source</span>
+        <span class="chip">macOS 13 or later</span>
+      </div>
+      <h1>Your Claude window, already running when you sit down.</h1>
+      <p class="lead">Claude's five-hour window starts with your first message. Dawn sends it early from your menu bar, through the official Claude Code CLI, so the window resets sooner in your day and a fresh one follows right after.</p>
+      <div class="actions">
+        <a class="btn btn-red" href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.dmg">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg>
+          Download for Mac
+        </a>
+        <a class="btn btn-line" href="https://github.com/Kungie/dawn">View on GitHub</a>
+      </div>
+    </div>
+    <div class="hero-shot">
+      <img src="assets/shots/readme.png" width="1080" height="942" alt="Dawn in the Mac menu bar: a sun with 1:44 next to it, and Dawn's panel showing 1:44 left, resets at 11:00, keep awake, and the morning ping at 06:30 Monday to Friday.">
+    </div>
+  </div>
+
+  <section id="how">
+    <div class="wrap sec">
+      <div class="head">
+        <p class="eyebrow">How it works</p>
+        <h2>It moves the timing, not the limit.</h2>
+        <p class="lead">You start at 09:00. Without Dawn your window opens then and resets at 14:00. With a 06:30 ping it's already two and a half hours in, resets at 11:30, and Auto refresh starts the next one a minute later.</p>
+      </div>
+      <div class="panel tl" role="img" aria-label="Timeline from 06:00 to 21:00. Without Dawn: windows 09:00 to 14:00 and 14:00 to 19:00. With Dawn: 06:30 to 11:30, 11:31 to 16:31, then 16:32 onwards. You sit down at 09:00.">
+        <div class="tl-in" aria-hidden="true">
+          <div class="row">
+            <div class="row-label"></div>
+            <div class="scale">
+              <span style="left:0">06:00</span><span style="left:20%">09:00</span><span style="left:40%">12:00</span><span style="left:60%">15:00</span><span style="left:80%">18:00</span><span style="left:100%">21:00</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-label">Without Dawn</div>
+            <div class="track">
+              <div class="win" style="left:20%;width:33.33%">09:00 – 14:00</div>
+              <div class="win" style="left:53.33%;width:33.33%">14:00 – 19:00</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-label on">With Dawn</div>
+            <div class="track">
+              <div class="win dawn" style="left:3.33%;width:33.33%"><span class="dot" style="background:var(--red)"></span>06:30 – 11:30</div>
+              <div class="win" style="left:36.67%;width:33.33%">11:31 – 16:31</div>
+              <div class="win open" style="left:70%;right:0">16:32 –</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="row-label"></div>
+            <div class="marker"><span><span class="dot" style="background:var(--progress)"></span>You sit down</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="muted" style="font-size:13px">Your weekly limit stays where Anthropic set it. Dawn only changes when each window starts.</p>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap sec">
+      <div class="head">
+        <p class="eyebrow">What it does</p>
+        <h2>A few small things, done quietly.</h2>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="icon" style="color:var(--red)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 5v4M5.6 10.6l1.5 1.5M18.4 10.6l-1.5 1.5"/></svg></div>
+          <h3>Morning ping</h3>
+          <p>At the time and on the days you pick, Dawn wakes the Mac for a minute and sends one short message to the smallest model.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4h-4"/></svg></div>
+          <h3>Auto refresh</h3>
+          <p>A minute after each window resets, the next ping goes out, until the next morning. If the Mac is asleep, it goes when it wakes.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 9.5V13l2.5 2M10 3h4"/></svg></div>
+          <h3>Countdown</h3>
+          <p>Time left, reset time and share used, read from Claude Code's own <span class="code">/usage</span>, which costs none of your limit.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18.5h18M5 16.5l9.5-9.5"/></svg></div>
+          <h3>Keep awake with the lid closed</h3>
+          <p>One switch keeps long Claude Code runs going when you close the lid. It turns off after the time you pick, on low battery and when Dawn quits.</p>
+        </div>
+        <div class="card">
+          <div class="icon" style="color:var(--urgent)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5h4"/></svg></div>
+          <h3>Claude Code alerts</h3>
+          <p>An orange dot when Claude Code is waiting for you, a short sound when it's done. Click it to jump to that session.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg></div>
+          <h3>Signed updates</h3>
+          <p>Once a day Dawn checks GitHub. Update installs a new release only if it's signed with Dawn's key, and keeps your settings.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap shots">
+      <figure>
+        <img src="assets/shots/panel-awake.png" width="680" height="1186" loading="lazy" alt="Dawn's panel with Keep awake switched on: turn off after 2 hours, on battery turn off at 20 percent.">
+        <figcaption>Keep awake, with its own time and battery cutoff.</figcaption>
+      </figure>
+      <figure>
+        <img src="assets/shots/panel-asking.png" width="680" height="994" loading="lazy" alt="Dawn's panel with an orange banner: Claude Code is waiting for you.">
+        <figcaption>An alert when Claude Code needs you.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap split">
+      <div class="head">
+        <p class="eyebrow">Privacy</p>
+        <h2>Everything stays on your Mac.</h2>
+      </div>
+      <div class="panel">
+        <div class="item"><span class="dot"></span><div><strong>Only the official CLI</strong><span class="muted">Pings and usage go through <span class="code">claude</span> with your own login. No API key.</span></div></div>
+        <div class="item"><span class="dot"></span><div><strong>Your credentials stay yours</strong><span class="muted">Dawn never reads or stores your Claude login.</span></div></div>
+        <div class="item"><span class="dot"></span><div><strong>No tracking</strong><span class="muted">No analytics, no account. The only other request is the daily update check on GitHub.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div class="wrap sec">
+      <div class="head">
+        <p class="eyebrow">Setup</p>
+        <h2>Ready in a couple of minutes.</h2>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <span class="step">01</span>
+          <h3>Sign in to Claude Code</h3>
+          <p>Install <a href="https://docs.claude.com/en/docs/claude-code/setup" style="border-bottom:1px solid var(--line-strong)">Claude Code</a> and sign in once.</p>
+          <pre class="code">claude auth login</pre>
+        </div>
+        <div class="card">
+          <span class="step">02</span>
+          <h3>Install Dawn</h3>
+          <p>Open Dawn.dmg and drag Dawn into Applications. It isn't notarized yet: the first time, click Open Anyway in System Settings › Privacy &amp; Security.</p>
+        </div>
+        <div class="card">
+          <span class="step">03</span>
+          <h3>Pick a time</h3>
+          <p>In Settings, switch on the morning ping, pick a time and days, and let Dawn wake the Mac. Keep it plugged in and asleep, not shut down.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap cta">
+      <svg width="56" height="56" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" fill="#e2231a" mask="url(#sun-gaps)"></circle></svg>
+      <h2>Start tomorrow with a head start.</h2>
+      <p class="lead">Free, open source, and small enough to forget about.</p>
+      <a class="btn btn-red" href="https://github.com/Kungie/dawn/releases/latest/download/Dawn.dmg">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/></svg>
+        Download for Mac
+      </a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <p>Dawn is an independent project, not affiliated with Anthropic. Claude is a trademark of Anthropic, PBC.</p>
+    <div class="foot-links">
+      <a href="https://github.com/Kungie/dawn">GitHub</a>
+      <a href="https://github.com/Kungie/dawn/releases">Releases</a>
+      <a href="https://github.com/Kungie/dawn/blob/main/LICENSE">Licence</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

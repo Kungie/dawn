@@ -14,6 +14,10 @@ A macOS menu bar app (Swift package, Command Line Tools only, macOS 13+). Code, 
 2. `make test`, then `make release`. It checks the two versions match, builds, and signs `build/Dawn.zip` into `build/Dawn.zip.sig` with `scripts/sign-update.swift`.
 3. Ask the maintainer before committing, pushing or releasing. Then `gh release create vX.Y.Z build/Dawn.dmg build/Dawn.zip build/Dawn.zip.sig`.
 
+## Website
+
+`site/` is the website at dawn.erenkahraman.dev: static HTML and assets, no build step. It runs on the home server in `~/sites/dawn-site` (Caddy plus its own Cloudflare Tunnel, like the other sites there). To publish a change, `rsync -a --delete site/ <server>:sites/dawn-site/public/`; Caddy serves it at once. The version chip in `site/index.html` (`id="version"`) is updated by hand after a release.
+
 ## Update signing: keep the key secret
 
 - Dawn's release key is an Ed25519 key in the login Keychain: service `io.github.kungie.dawn.update-signing`, account `release`. It was made once with `swift scripts/update-key.swift`. It is Dawn's own key; never use Binder's.
