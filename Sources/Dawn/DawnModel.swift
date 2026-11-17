@@ -228,7 +228,7 @@ final class DawnModel: ObservableObject {
     private func tick() {
         now = Date()
         if let a = ask, now.timeIntervalSince(a.date) > 15 * 60 { ask = nil }
-        if let d = done, now.timeIntervalSince(d.date) > 30 * 60 { done = nil }
+        if let d = done, now.timeIntervalSince(d.date) > 5 * 60 { done = nil } // gone after 5 minutes untouched
         updateWindow()
         checkSchedule()
         checkFollowUp()
