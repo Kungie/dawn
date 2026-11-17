@@ -342,3 +342,31 @@ enum MenuBarIcon {
         return NSAttributedString(string: text, attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: size, weight: .medium)])
     }
 }
+
+/// Calls `action` on a middle click (mouse button 3) over the view. Every other click passes through
+/// to the view underneath, so taps and buttons keep working.
+private final class MiddleClickView: NSView {
+    var action: () -> Void = {}
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        NSApp.currentEvent?.type == .otherMouseDown ? super.hitTest(point) : nil
+    }
+    override func otherMouseDown(with event: NSEvent) {
+        if event.buttonNumber == 2 { action() } else { super.otherMouseDown(with: event) }
+    }
+}
+
+private struct MiddleClick: NSViewRepresentable {
+    let action: () -> Void
+    func makeNSView(context: Context) -> MiddleClickView {
+        let view = MiddleClickView()
+        view.action = action
+        return view
+    }
+    func updateNSView(_ view: MiddleClickView, context: Context) { view.action = action }
+}
+
+extension View {
+    func onMiddleClick(_ action: @escaping () -> Void) -> some View {
+        overlay(MiddleClick(action: action))
+    }
+}

@@ -327,8 +327,9 @@ struct AskBanner: View {
         .surface()
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
+        .onMiddleClick(dismiss)
         .pointerCursor()
-        .help("Go to this Claude Code session")
+        .help("Go to this Claude Code session. Middle-click to dismiss.")
     }
 }
 
@@ -352,8 +353,9 @@ struct DoneBanner: View {
         .surface()
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
+        .onMiddleClick(dismiss)
         .pointerCursor()
-        .help("Go to this Claude Code session")
+        .help("Go to this Claude Code session. Middle-click to dismiss.")
     }
 }
 
