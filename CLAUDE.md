@@ -35,4 +35,4 @@ A macOS menu bar app (Swift package, Command Line Tools only, macOS 13+). Code, 
 
 ## Privacy
 
-Dawn sends nothing to Vektor Labs. It talks to Anthropic only through the official `claude` CLI (the ping and `/usage`) and to GitHub only for the daily update check (`api.github.com`, User-Agent `Dawn`, no data about the user) and the update download. It never reads or stores Claude credentials. Keep awake runs only local commands (`pmset`, `sudo -n`) and reads the battery level locally. If any of this changes, update `../site/datenschutz.html` (the Dawn section) too.
+Dawn has no server of its own. It talks to Anthropic only through the official `claude` CLI (the ping and `/usage`) and to GitHub only for the daily update check (`api.github.com`, User-Agent `Dawn`, no data about the user) and the update download. It never reads or stores Claude credentials. Keep awake runs only local commands (`pmset`, `sudo -n`) and reads the battery level locally. If any of this changes, update the Privacy section of `site/index.html` too.
