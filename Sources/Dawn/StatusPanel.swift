@@ -67,7 +67,7 @@ final class StatusPanelController: NSObject {
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
         button.image = MenuBarIcon.image(asking: model.ask != nil, done: model.done != nil)
-        let text = model.menuBarText.map { " \($0)" } ?? ""
+        let text = model.menuBarText ?? "" // no leading space: the button already leaves a gap after the image
         defer { if panel.isVisible { place() } } // the item can change width, keep the panel centred under it
         button.attributedTitle = MenuBarIcon.title(text)
         button.setAccessibilityLabel(model.menuBarAccessibilityLabel)

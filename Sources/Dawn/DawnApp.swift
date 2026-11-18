@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.8.5"
+    static let version = "0.8.6"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -64,7 +64,7 @@ enum Snapshot {
     @MainActor
     static func menuBar(to path: String) {
         let scale: CGFloat = 2
-        let title = NSMutableAttributedString(attributedString: MenuBarIcon.title(" 1:44"))
+        let title = NSMutableAttributedString(attributedString: MenuBarIcon.title("1:44"))
         title.addAttribute(.foregroundColor, value: NSColor.white, range: NSRange(location: 0, length: title.length))
         let textSize = title.size()
         let size = NSSize(width: 18 + textSize.width + 20, height: 24)
@@ -80,7 +80,7 @@ enum Snapshot {
                 return true
             }
             tinted.draw(in: NSRect(x: 10, y: 3, width: 18, height: 18))
-            title.draw(at: NSPoint(x: 28, y: (size.height - textSize.height) / 2))
+            title.draw(at: NSPoint(x: 31, y: (size.height - textSize.height) / 2))
             return true
         }
         guard let tiff = image.tiffRepresentation,
