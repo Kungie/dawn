@@ -299,13 +299,13 @@ extension View {
 // MARK: - Menu bar icon
 
 enum MenuBarIcon {
-    /// An 18 pt template image of Dawn's mark.
+    /// A 16 × 18 pt template image of Dawn's mark, with no spare room at the sides so the item sits close to its neighbours.
     /// Claude Code waiting: a ringed dot top right. Claude finished: a solid dot top right.
     static func image(asking: Bool, done: Bool = false) -> NSImage {
-        let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+        let img = NSImage(size: NSSize(width: 16, height: 18), flipped: false) { _ in
             NSColor.black.set()
             // Dawn's mark: a 13 pt sun with three gaps across its lower part.
-            let d: CGFloat = 13, x: CGFloat = 2.5, y: CGFloat = 2.5
+            let d: CGFloat = 13, x: CGFloat = 0.5, y: CGFloat = 2.5
             NSBezierPath(ovalIn: NSRect(x: x, y: y, width: d, height: d)).fill()
             NSGraphicsContext.current?.compositingOperation = .clear
             for (top, bottom) in DawnMark.gaps {
@@ -316,15 +316,15 @@ enum MenuBarIcon {
             if asking || done {
                 // Knock out a gap around the mark so it reads against the sun.
                 NSGraphicsContext.current?.compositingOperation = .clear
-                NSBezierPath(ovalIn: NSRect(x: 11.2, y: 9.2, width: 7.6, height: 7.6)).fill()
+                NSBezierPath(ovalIn: NSRect(x: 9.2, y: 9.2, width: 7.6, height: 7.6)).fill()
                 NSGraphicsContext.current?.compositingOperation = .sourceOver
                 if asking {
-                    let ring = NSBezierPath(ovalIn: NSRect(x: 12.2, y: 10.2, width: 5.6, height: 5.6))
+                    let ring = NSBezierPath(ovalIn: NSRect(x: 10.2, y: 10.2, width: 5.6, height: 5.6))
                     ring.lineWidth = 1.2
                     ring.stroke()
-                    NSBezierPath(ovalIn: NSRect(x: 14.0, y: 12.0, width: 2.0, height: 2.0)).fill()
+                    NSBezierPath(ovalIn: NSRect(x: 12.0, y: 12.0, width: 2.0, height: 2.0)).fill()
                 } else {
-                    NSBezierPath(ovalIn: NSRect(x: 12.4, y: 10.4, width: 5.2, height: 5.2)).fill()
+                    NSBezierPath(ovalIn: NSRect(x: 10.4, y: 10.4, width: 5.2, height: 5.2)).fill()
                 }
             }
             return true

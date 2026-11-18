@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 enum DawnInfo {
-    static let version = "0.8.6"
+    static let version = "0.8.7"
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -67,7 +67,7 @@ enum Snapshot {
         let title = NSMutableAttributedString(attributedString: MenuBarIcon.title("1:44"))
         title.addAttribute(.foregroundColor, value: NSColor.white, range: NSRange(location: 0, length: title.length))
         let textSize = title.size()
-        let size = NSSize(width: 18 + textSize.width + 20, height: 24)
+        let size = NSSize(width: 16 + textSize.width + 20, height: 24)
         let image = NSImage(size: NSSize(width: size.width * scale, height: size.height * scale), flipped: false) { _ in
             NSGraphicsContext.current?.cgContext.scaleBy(x: scale, y: scale)
             NSColor(white: 0.12, alpha: 1).setFill()
@@ -79,8 +79,8 @@ enum Snapshot {
                 r.fill(using: .sourceAtop)
                 return true
             }
-            tinted.draw(in: NSRect(x: 10, y: 3, width: 18, height: 18))
-            title.draw(at: NSPoint(x: 31, y: (size.height - textSize.height) / 2))
+            tinted.draw(in: NSRect(x: 10, y: 3, width: 16, height: 18))
+            title.draw(at: NSPoint(x: 29, y: (size.height - textSize.height) / 2))
             return true
         }
         guard let tiff = image.tiffRepresentation,
